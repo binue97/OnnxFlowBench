@@ -1,0 +1,10 @@
+# Python >= 3.10 required (uses PEP 604 union types: str | None)
+numpy>=2.0
+torch>=2.0
+onnxruntime>=1.17
+onnx>=1.14
+opencv-python>=4.8
+h5py>=3.9
+Pillow>=10.0
+scipy>=1.11
+pytest>=8.0
