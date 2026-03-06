@@ -7,6 +7,7 @@ import os.path as osp
 from utils import frame_utils
 from dataloader.template import FlowDataset
 
+
 class Spring(FlowDataset):
     """
     Dataset class for Spring optical flow dataset.
@@ -17,7 +18,14 @@ class Spring(FlowDataset):
     split: train/test split
     subsample_groundtruth: If true, return ground truth such that it has the same dimensions as the images (1920x1080px); if false return full 4K resolution
     """
-    def __init__(self, root='datasets/Spring', split='train', scene_idx=None, subsample_groundtruth=True):
+
+    def __init__(
+        self,
+        root="datasets/Spring",
+        split="train",
+        scene_idx=None,
+        subsample_groundtruth=True,
+    ):
         super(Spring, self).__init__()
         assert split in ["train", "val", "test", "train_val"]
         seq_root = osp.join(root, split)
@@ -27,35 +35,54 @@ class Spring(FlowDataset):
         self.split = split
         self.seq_root = seq_root
         self.data_list = []
-        if split == 'test':
+        if split == "test":
             self.is_test = True
         for scene in sorted(os.listdir(seq_root)):
             if scene_idx is not None and scene != scene_idx:
                 continue
             for cam in ["left", "right"]:
-                images = sorted(glob(osp.join(seq_root, scene, f"frame_{cam}", '*.png')))
+                images = sorted(
+                    glob(osp.join(seq_root, scene, f"frame_{cam}", "*.png"))
+                )
                 # forward
                 for frame in range(1, len(images)):
                     self.data_list.append((frame, scene, cam, "FW"))
                 # backward
-                for frame in reversed(range(2, len(images)+1)):
+                for frame in reversed(range(2, len(images) + 1)):
                     self.data_list.append((frame, scene, cam, "BW"))
 
         for frame_data in self.data_list:
             frame, scene, cam, direction = frame_data
 
-            img1_path = osp.join(self.seq_root, scene, f"frame_{cam}", f"frame_{cam}_{frame:04d}.png")
+            img1_path = osp.join(
+                self.seq_root, scene, f"frame_{cam}", f"frame_{cam}_{frame:04d}.png"
+            )
 
             if direction == "FW":
-                img2_path = osp.join(self.seq_root, scene, f"frame_{cam}", f"frame_{cam}_{frame+1:04d}.png")
+                img2_path = osp.join(
+                    self.seq_root,
+                    scene,
+                    f"frame_{cam}",
+                    f"frame_{cam}_{frame + 1:04d}.png",
+                )
             else:
-                img2_path = osp.join(self.seq_root, scene, f"frame_{cam}", f"frame_{cam}_{frame-1:04d}.png")
+                img2_path = osp.join(
+                    self.seq_root,
+                    scene,
+                    f"frame_{cam}",
+                    f"frame_{cam}_{frame - 1:04d}.png",
+                )
 
             self.image_list += [[img1_path, img2_path]]
             self.extra_info += [frame_data]
 
-            if split != 'test':
-                flow_path = osp.join(self.seq_root, scene, f"flow_{direction}_{cam}", f"flow_{direction}_{cam}_{frame:04d}.flo5")
+            if split != "test":
+                flow_path = osp.join(
+                    self.seq_root,
+                    scene,
+                    f"flow_{direction}_{cam}",
+                    f"flow_{direction}_{cam}_{frame:04d}.flo5",
+                )
                 self.flow_list += [flow_path]
 
     def read_flow(self, index):
@@ -63,4 +90,3 @@ class Spring(FlowDataset):
         flow = flow[::2, ::2]
         valid = (np.abs(flow[..., 0]) < 1000) & (np.abs(flow[..., 1]) < 1000)
         return flow, valid
-    

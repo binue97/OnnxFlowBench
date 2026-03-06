@@ -28,6 +28,7 @@ from dataloader.tartanair import TartanAir
 # FlowDataset base class
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestFlowDatasetBase:
     def test_empty_dataset_has_zero_length(self):
         ds = FlowDataset()
@@ -45,6 +46,7 @@ class TestFlowDatasetBase:
 # ═══════════════════════════════════════════════════════════════════════════════
 # MPI Sintel
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestMpiSintel:
     def test_discovery(self):
@@ -77,6 +79,7 @@ class TestMpiSintel:
 # FlyingChairs
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestFlyingChairs:
     def test_discovery_training(self):
         ds = FlyingChairs(split="training")
@@ -97,6 +100,7 @@ class TestFlyingChairs:
 # ═══════════════════════════════════════════════════════════════════════════════
 # KITTI
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestKITTI:
     def test_discovery(self):
@@ -120,6 +124,7 @@ class TestKITTI:
 # FlyingThings3D
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestFlyingThings:
     def test_discovery(self):
         ds = FlyingThings(dstype="frames_cleanpass")
@@ -136,6 +141,7 @@ class TestFlyingThings:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Spring
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestSpring:
     def test_discovery(self):
@@ -162,6 +168,7 @@ class TestSpring:
 # HD1K
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestHD1K:
     def test_discovery(self):
         ds = HD1K()
@@ -177,6 +184,7 @@ class TestHD1K:
 # ═══════════════════════════════════════════════════════════════════════════════
 # TartanAir
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestTartanAir:
     def test_discovery(self):
@@ -196,10 +204,13 @@ class TestTartanAir:
 # DataLoader integration
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestDataLoaderIntegration:
     def test_dataloader_batch(self):
         ds = MpiSintel(split="training", dstype="clean")
-        loader = torch.utils.data.DataLoader(ds, batch_size=2, shuffle=False, num_workers=0)
+        loader = torch.utils.data.DataLoader(
+            ds, batch_size=2, shuffle=False, num_workers=0
+        )
         img1, img2, flow, valid = next(iter(loader))
         assert img1.shape[0] == 2
         assert flow.shape[1] == 2
@@ -220,6 +231,7 @@ class TestDataLoaderIntegration:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Output quality checks
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestOutputShapesAndTypes:
     def test_image_range(self):
@@ -245,19 +257,20 @@ class TestOutputShapesAndTypes:
 #   python -m pytest tests/test_dataloader.py -v -s -k "test_print_statistics"
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class TestDatasetStatistics:
     """Print summary statistics for every dataset."""
 
     DATASETS = [
-        ("Sintel (clean)",       lambda: MpiSintel(split="training", dstype="clean")),
-        ("Sintel (final)",       lambda: MpiSintel(split="training", dstype="final")),
+        ("Sintel (clean)", lambda: MpiSintel(split="training", dstype="clean")),
+        ("Sintel (final)", lambda: MpiSintel(split="training", dstype="final")),
         ("FlyingChairs (train)", lambda: FlyingChairs(split="training")),
-        ("FlyingChairs (val)",   lambda: FlyingChairs(split="validation")),
-        ("KITTI",                lambda: KITTI(split="training")),
-        ("FlyingThings",         lambda: FlyingThings(dstype="frames_cleanpass")),
-        ("Spring (train)",       lambda: Spring(split="train")),
-        ("HD1K",                 lambda: HD1K()),
-        ("TartanAir",            lambda: TartanAir()),
+        ("FlyingChairs (val)", lambda: FlyingChairs(split="validation")),
+        ("KITTI", lambda: KITTI(split="training")),
+        ("FlyingThings", lambda: FlyingThings(dstype="frames_cleanpass")),
+        ("Spring (train)", lambda: Spring(split="train")),
+        ("HD1K", lambda: HD1K()),
+        ("TartanAir", lambda: TartanAir()),
     ]
 
     def test_print_statistics(self):
@@ -274,6 +287,8 @@ class TestDatasetStatistics:
             match = "✓" if n_pairs == n_flows else "✗"
             print(f"{name:<25} {n_pairs:>12,} {n_flows:>12,} {match:>6}")
             assert n_pairs > 0, f"{name}: no image pairs found"
-            assert n_pairs == n_flows, f"{name}: mismatch — {n_pairs} pairs vs {n_flows} flows"
+            assert n_pairs == n_flows, (
+                f"{name}: mismatch — {n_pairs} pairs vs {n_flows} flows"
+            )
 
         print(sep)

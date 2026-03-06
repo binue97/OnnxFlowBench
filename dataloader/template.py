@@ -6,6 +6,7 @@ import random
 
 from utils import frame_utils
 
+
 class FlowDataset(data.Dataset):
     def __init__(self, sparse=False):
         self.sparse = sparse
@@ -46,8 +47,8 @@ class FlowDataset(data.Dataset):
         img2 = np.array(img2).astype(np.uint8)
         # grayscale images
         if len(img1.shape) == 2:
-            img1 = np.tile(img1[...,None], (1, 1, 3))
-            img2 = np.tile(img2[...,None], (1, 1, 3))
+            img1 = np.tile(img1[..., None], (1, 1, 3))
+            img2 = np.tile(img2[..., None], (1, 1, 3))
         else:
             img1 = img1[..., :3]
             img2 = img2[..., :3]
@@ -56,7 +57,11 @@ class FlowDataset(data.Dataset):
         img2 = torch.from_numpy(img2).permute(2, 0, 1).float()
         flow = torch.from_numpy(flow).permute(2, 0, 1).float()
         valid = torch.from_numpy(valid)
-        valid = (valid >= 0.5) & ((~torch.isnan(flow)).all(dim=0)) & ((~torch.isinf(flow)).all(dim=0))
+        valid = (
+            (valid >= 0.5)
+            & ((~torch.isnan(flow)).all(dim=0))
+            & ((~torch.isinf(flow)).all(dim=0))
+        )
         flow[torch.isinf(flow)] = 0
         flow[torch.isnan(flow)] = 0
         return img1, img2, flow, valid.float()
@@ -65,7 +70,6 @@ class FlowDataset(data.Dataset):
         self.flow_list = v * self.flow_list
         self.image_list = v * self.image_list
         return self
-        
+
     def __len__(self):
         return len(self.image_list)
-    
