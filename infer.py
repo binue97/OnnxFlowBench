@@ -31,33 +31,38 @@ from utils.frame_utils import writeFlow
 
 def load_image(path: str) -> np.ndarray:
     """Load an image as (H, W, 3) uint8 RGB."""
-    img = np.array(Image.open(path).convert("RGB"))
+    img = Image.open(path)
+    mode = img.mode  # e.g. "L", "RGB", "RGBA", "I", "P", ...
+    w, h = img.size
+    print(f"  Image path: {path}: {w}x{h}, mode={mode}")
+
+    img = np.array(img.convert("RGB"))
+    print(f"  Converted from {mode} to RGB, shape: {img.shape}, dtype: {img.dtype}\n")
     return img
 
 
 def save_results(
     output_dir: str,
     flow_pred: np.ndarray,
-    save_png: bool = False,
-    save_flo: bool = False,
-    save_npy: bool = False,
+    png: bool = False,
+    flo: bool = False,
+    npy: bool = False,
 ):
     """Save predicted flow in the requested formats."""
-    assert save_png or save_flo or save_npy, "At least one output format must be specified"
     os.makedirs(output_dir, exist_ok=True)
 
-    if save_png:
+    if png:
         path = os.path.join(output_dir, "flow_pred.png")
         flow_viz = flow_to_image(flow_pred)
         Image.fromarray(flow_viz).save(path)
         print(f"  Saved: {path}")
 
-    if save_flo:
+    if flo:
         path = os.path.join(output_dir, "flow_pred.flo")
         writeFlow(path, flow_pred)
         print(f"  Saved: {path}")
 
-    if save_npy:
+    if npy:
         path = os.path.join(output_dir, "flow_pred.npy")
         np.save(path, flow_pred)
         print(f"  Saved: {path}")
@@ -81,9 +86,9 @@ def main():
     parser.add_argument("--img2", required=True, help="Path to second image")
     # Output
     parser.add_argument("--output", default="results", help="Output directory")
-    parser.add_argument("--save-png", action="store_true", help="Save color visualization (.png)")
-    parser.add_argument("--save-flo", action="store_true", help="Save Middlebury .flo format")
-    parser.add_argument("--save-npy", action="store_true", help="Save raw numpy .npy")
+    parser.add_argument("--png", action="store_true", help="Save color visualization (.png)")
+    parser.add_argument("--flo", action="store_true", help="Save Middlebury .flo format")
+    parser.add_argument("--npy", action="store_true", help="Save raw numpy .npy")
     args = parser.parse_args()
 
     # ── Load images ───────────────────────────────────────────────────────────
@@ -103,14 +108,15 @@ def main():
     print(f"  Flow range: [{flow_pred.min():.2f}, {flow_pred.max():.2f}]")
 
     # ── Save outputs ──────────────────────────────────────────────────────────
-    if args.output and (args.save_png or args.save_flo or args.save_npy):
-        print(f"Saving results to {args.output}/")
+    if args.output:
+        assert args.png or args.flo or args.npy, "Specify at least one output format with --png, --flo, or --npy"
+        print(f"Saving results to {args.output}")
         save_results(
             args.output,
             flow_pred,
-            save_png=args.save_png,
-            save_flo=args.save_flo,
-            save_npy=args.save_npy,
+            png=args.png,
+            flo=args.flo,
+            npy=args.npy,
         )
 
     print("Inference Done.")
