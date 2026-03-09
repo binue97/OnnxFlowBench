@@ -21,7 +21,7 @@ ort = pytest.importorskip("onnxruntime", reason="onnxruntime not installed")
 onnx = pytest.importorskip("onnx", reason="onnx not installed (needed to build test models)")
 
 from onnx import helper, TensorProto
-from engine.onnx_engine import OnnxEngine, TensorSpec
+from core.onnx_engine import OnnxEngine, TensorSpec
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -9,9 +9,9 @@ Usage:
 
 from dataclasses import replace
 
-from engine.base_adapter import ModelAdapter
-from engine.adapter_config import AdapterConfig
-from engine.default_adapter import DefaultAdapter
+from core.base_adapter import ModelAdapter
+from core.adapter_config import AdapterConfig
+from core.default_adapter import DefaultAdapter
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

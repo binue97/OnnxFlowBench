@@ -9,11 +9,11 @@ API:
 
 import numpy as np
 
-from engine.onnx_engine import OnnxEngine
-from engine.base_adapter import ModelAdapter
-from engine.adapter_config import AdapterConfig
-from engine.default_adapter import DefaultAdapter
-from engine.registry import get_adapter
+from core.onnx_engine import OnnxEngine
+from core.base_adapter import ModelAdapter
+from core.adapter_config import AdapterConfig
+from core.default_adapter import DefaultAdapter
+from core.registry import get_adapter
 
 
 class FlowModel:

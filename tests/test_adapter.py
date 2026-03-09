@@ -15,10 +15,10 @@ import numpy as np
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-from engine.base_adapter import ModelAdapter
-from engine.adapter_config import AdapterConfig
-from engine.default_adapter import DefaultAdapter
-from engine.registry import (
+from core.base_adapter import ModelAdapter
+from core.adapter_config import AdapterConfig
+from core.default_adapter import DefaultAdapter
+from core.registry import (
     get_adapter,
     list_adapters,
     register_adapter,

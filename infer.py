@@ -23,8 +23,8 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from engine.flow_model import FlowModel
-from engine.registry import list_adapters
+from core.flow_model import FlowModel
+from core.registry import list_adapters
 from utils.flow_viz import flow_to_image
 from utils.frame_utils import writeFlow
 

@@ -8,8 +8,8 @@ For models that need custom logic, subclass ModelAdapter directly.
 import numpy as np
 import cv2
 
-from engine.base_adapter import ModelAdapter
-from engine.adapter_config import AdapterConfig
+from core.base_adapter import ModelAdapter
+from core.adapter_config import AdapterConfig
 
 
 class DefaultAdapter(ModelAdapter):

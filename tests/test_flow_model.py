@@ -21,10 +21,10 @@ onnx = pytest.importorskip("onnx", reason="onnx not installed")
 
 from onnx import helper, TensorProto
 
-from engine.flow_model import FlowModel
-from engine.base_adapter import ModelAdapter
-from engine.adapter_config import AdapterConfig
-from engine.default_adapter import DefaultAdapter
+from core.flow_model import FlowModel
+from core.base_adapter import ModelAdapter
+from core.adapter_config import AdapterConfig
+from core.default_adapter import DefaultAdapter
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
