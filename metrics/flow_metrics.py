@@ -140,7 +140,7 @@ def compute_metrics(
         dataset: dataset name (e.g. "sintel", "kitti") or None for all
 
     Returns:
-        Dict of metric_name → value.
+        Dict of metric_name -> value.
     """
     _validate_inputs(pred, gt, valid)
 

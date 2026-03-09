@@ -31,7 +31,7 @@ class OnnxEngine:
         - Load an ONNX model and create an inference session
         - Select execution provider (CPU / CUDA)
         - Expose input/output specs via introspection
-        - Run inference: dict[str, ndarray] → dict[str, ndarray]
+        - Run inference: dict[str, ndarray] -> dict[str, ndarray]
     """
 
     # Supported providers in priority order
@@ -136,10 +136,10 @@ class OnnxEngine:
         Run inference.
 
         Args:
-            inputs: Dict mapping input tensor names → numpy arrays.
+            inputs: Dict mapping input tensor names -> numpy arrays.
 
         Returns:
-            Dict mapping output tensor names → numpy arrays.
+            Dict mapping output tensor names -> numpy arrays.
 
         Raises:
             ValueError: If required input names are missing.

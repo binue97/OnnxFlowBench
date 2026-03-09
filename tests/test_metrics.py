@@ -58,13 +58,13 @@ class TestEPE:
         assert epe(flow, flow, _all_valid()) == pytest.approx(0.0)
 
     def test_known_constant_error(self):
-        """Constant offset of (3,4) → EPE = 5.0."""
+        """Constant offset of (3,4) -> EPE = 5.0."""
         pred = _constant_flow(dx=0.0, dy=0.0)
         gt = _constant_flow(dx=3.0, dy=4.0)
         assert epe(pred, gt, _all_valid()) == pytest.approx(5.0)
 
     def test_unit_error(self):
-        """Offset of (1,0) → EPE = 1.0."""
+        """Offset of (1,0) -> EPE = 1.0."""
         pred = _constant_flow(dx=0.0, dy=0.0)
         gt = _constant_flow(dx=1.0, dy=0.0)
         assert epe(pred, gt, _all_valid()) == pytest.approx(1.0)
@@ -86,7 +86,7 @@ class TestEPE:
         assert epe(_constant_flow(), _constant_flow(dx=5.0), _all_invalid()) == 0.0
 
     def test_partial_mask(self):
-        """Half pixels with EPE=2, half with EPE=4 → mean=3."""
+        """Half pixels with EPE=2, half with EPE=4 -> mean=3."""
         H, W = 2, 2
         pred = np.zeros((H, W, 2), dtype=np.float32)
         gt = np.zeros((H, W, 2), dtype=np.float32)
@@ -110,7 +110,7 @@ class TestFlAll:
         assert fl_all(flow, flow, _all_valid()) == pytest.approx(0.0)
 
     def test_all_outliers(self):
-        """Every pixel has EPE=10 with gt_mag=0 → all outliers."""
+        """Every pixel has EPE=10 with gt_mag=0 -> all outliers."""
         pred = _constant_flow(dx=10.0, dy=0.0)
         gt = _constant_flow(dx=0.0, dy=0.0)
         assert fl_all(pred, gt, _all_valid()) == pytest.approx(1.0)
@@ -129,24 +129,24 @@ class TestFlAll:
         assert fl_all(pred, gt, _all_valid()) == pytest.approx(0.0)
 
     def test_mixed_outliers(self):
-        """2 out of 4 pixels are outliers → Fl-all = 0.5."""
+        """2 out of 4 pixels are outliers -> Fl-all = 0.5."""
         H, W = 2, 2
         pred = np.zeros((H, W, 2), dtype=np.float32)
         gt = np.zeros((H, W, 2), dtype=np.float32)
 
-        # Pixel (0,0): EPE=10, gt_mag=0 → outlier
+        # Pixel (0,0): EPE=10, gt_mag=0 -> outlier
         pred[0, 0] = [10.0, 0.0]
         gt[0, 0] = [0.0, 0.0]
 
-        # Pixel (0,1): EPE=10, gt_mag=0 → outlier
+        # Pixel (0,1): EPE=10, gt_mag=0 -> outlier
         pred[0, 1] = [10.0, 0.0]
         gt[0, 1] = [0.0, 0.0]
 
-        # Pixel (1,0): EPE=1, gt_mag=0 → inlier
+        # Pixel (1,0): EPE=1, gt_mag=0 -> inlier
         pred[1, 0] = [1.0, 0.0]
         gt[1, 0] = [0.0, 0.0]
 
-        # Pixel (1,1): EPE=0, gt_mag=0 → inlier
+        # Pixel (1,1): EPE=0, gt_mag=0 -> inlier
         pred[1, 1] = [0.0, 0.0]
         gt[1, 1] = [0.0, 0.0]
 
@@ -170,19 +170,19 @@ class TestNPixel:
         assert n_pixel(flow, flow, _all_valid(), n=1.0) == pytest.approx(0.0)
 
     def test_all_above_threshold(self):
-        """EPE=5 everywhere, threshold=1 → 100% above."""
+        """EPE=5 everywhere, threshold=1 -> 100% above."""
         pred = _constant_flow(dx=5.0, dy=0.0)
         gt = _constant_flow(dx=0.0, dy=0.0)
         assert n_pixel(pred, gt, _all_valid(), n=1.0) == pytest.approx(1.0)
 
     def test_all_below_threshold(self):
-        """EPE=0.5 everywhere, threshold=1 → 0% above."""
+        """EPE=0.5 everywhere, threshold=1 -> 0% above."""
         pred = _constant_flow(dx=0.5, dy=0.0)
         gt = _constant_flow(dx=0.0, dy=0.0)
         assert n_pixel(pred, gt, _all_valid(), n=1.0) == pytest.approx(0.0)
 
     def test_exactly_at_threshold(self):
-        """EPE exactly equals threshold → NOT counted (strictly greater)."""
+        """EPE exactly equals threshold -> NOT counted (strictly greater)."""
         pred = _constant_flow(dx=1.0, dy=0.0)
         gt = _constant_flow(dx=0.0, dy=0.0)
         assert n_pixel(pred, gt, _all_valid(), n=1.0) == pytest.approx(0.0)
