@@ -80,3 +80,10 @@ class AdapterConfig:
 
     upsample_mode: str = "bilinear"
     """Interpolation mode when upsampling sub-resolution output: "bilinear" or "nearest"."""
+
+    scale_flow_with_upsample: bool = True
+    """
+    Whether to scale flow magnitudes by the upsample factor.
+        True  -> flow values are in sub-resolution pixel units (most models)
+        False -> flow values are already in full-resolution pixel units
+    """

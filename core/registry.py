@@ -27,6 +27,7 @@ ADAPTER_REGISTRY: dict[str, AdapterConfig | type[ModelAdapter]] = {
         padding_factor=64,
         output_scale=20.0,
         output_resolution="quarter",
+        scale_flow_with_upsample=False, # TODO(bnu): This is not sure.
     ),
     # ── PWC-Net ──────────────────────────────
     "pwcnet": AdapterConfig(
@@ -36,6 +37,7 @@ ADAPTER_REGISTRY: dict[str, AdapterConfig | type[ModelAdapter]] = {
         padding_factor=64,
         output_scale=20.0,
         output_resolution="quarter",
+        scale_flow_with_upsample=False, # TODO(bnu): This is not sure.
     ),
     # ── RAFT ─────────────────────────────────
     "raft": AdapterConfig(

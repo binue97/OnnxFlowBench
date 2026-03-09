@@ -187,7 +187,8 @@ class DefaultAdapter(ModelAdapter):
                 else cv2.INTER_NEAREST
             ),
         )
-        flow_up *= scale
+        if self.config.scale_flow_with_upsample:
+            flow_up *= scale
         return flow_up
 
     def _unpad(self, flow: np.ndarray) -> np.ndarray:
