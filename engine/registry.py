@@ -1,5 +1,5 @@
 """
-Adapter registry — maps model names to adapters.
+Adapter registry - maps model names to adapters.
 
 Usage:
     adapter = get_adapter("flownets")      # -> DefaultAdapter with FlowNetS config

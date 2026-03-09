@@ -60,7 +60,7 @@ class AdapterConfig:
     output_layout: str = "CHW"
     """
     Layout of the flow output tensor (after removing batch dim):
-        "CHW" -> (2, H, W)  — most models
+        "CHW" -> (2, H, W)  - most models
         "HWC" -> (H, W, 2)
     """
 

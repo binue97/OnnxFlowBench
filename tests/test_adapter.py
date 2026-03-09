@@ -1,7 +1,7 @@
 """
 Tests for ModelAdapter, DefaultAdapter, AdapterConfig, and the registry.
 
-All tests use synthetic images and mock ONNX outputs — no real model needed.
+All tests use synthetic images and mock ONNX outputs - no real model needed.
 
 Usage:
     python -m pytest tests/test_adapter.py -v
@@ -75,7 +75,7 @@ class TestAdapterConfig:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DefaultAdapter — Preprocessing
+# DefaultAdapter - Preprocessing
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
@@ -121,9 +121,7 @@ class TestPreprocessFormat:
         assert feed["img1"].shape[1] == 3  # (1, 3, H, W)
 
     def test_concat_produces_one_6ch_tensor(self):
-        cfg = AdapterConfig(
-            input_names=["input"], input_format="concat"
-        )
+        cfg = AdapterConfig(input_names=["input"], input_format="concat")
         adapter = DefaultAdapter(cfg)
         feed = adapter.preprocess(_random_image(), _random_image())
         assert len(feed) == 1
@@ -185,7 +183,7 @@ class TestPreprocessShape:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DefaultAdapter — Postprocessing
+# DefaultAdapter - Postprocessing
 # ═══════════════════════════════════════════════════════════════════════════════
 
 

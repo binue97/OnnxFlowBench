@@ -1,5 +1,5 @@
 """
-Thin ONNX Runtime wrapper — session lifecycle, device placement, and raw inference.
+Thin ONNX Runtime wrapper - session lifecycle, device placement, and raw inference.
 
 This class only manages the ONNX session and runs inference.
 """
@@ -151,7 +151,7 @@ class OnnxEngine:
                 f"Missing inputs: {missing}. Model expects: {self.input_names}"
             )
 
-        # Only pass expected inputs — ONNX Runtime rejects unknown keys
+        # Only pass expected inputs - ONNX Runtime rejects unknown keys
         feed = {name: inputs[name] for name in self.input_names}
         raw_outputs = self.session.run(self.output_names, feed)
         return dict(zip(self.output_names, raw_outputs))

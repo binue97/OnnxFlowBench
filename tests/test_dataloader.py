@@ -288,7 +288,7 @@ class TestDatasetStatistics:
             print(f"{name:<25} {n_pairs:>12,} {n_flows:>12,} {match:>6}")
             assert n_pairs > 0, f"{name}: no image pairs found"
             assert n_pairs == n_flows, (
-                f"{name}: mismatch — {n_pairs} pairs vs {n_flows} flows"
+                f"{name}: mismatch - {n_pairs} pairs vs {n_flows} flows"
             )
 
         print(sep)

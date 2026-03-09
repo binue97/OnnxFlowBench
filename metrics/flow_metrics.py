@@ -2,9 +2,9 @@
 Optical flow evaluation metrics.
 
 All functions follow a consistent interface:
-    - pred:  (H, W, 2)  float32  — predicted flow in pixel units
-    - gt:    (H, W, 2)  float32  — ground-truth flow in pixel units
-    - valid: (H, W)     float32  — binary mask (1 = valid pixel, 0 = ignore)
+    - pred:  (H, W, 2)  float32  - predicted flow in pixel units
+    - gt:    (H, W, 2)  float32  - ground-truth flow in pixel units
+    - valid: (H, W)     float32  - binary mask (1 = valid pixel, 0 = ignore)
 
 All functions return a single float scalar.
 """
@@ -42,7 +42,7 @@ def _endpoint_error(pred: np.ndarray, gt: np.ndarray) -> np.ndarray:
 
 def epe(pred: np.ndarray, gt: np.ndarray, valid: np.ndarray) -> float:
     """
-    End-Point Error — mean L2 distance over valid pixels.
+    End-Point Error - mean L2 distance over valid pixels.
 
     This is the primary metric for Sintel, FlyingChairs, FlyingThings, Spring.
 
@@ -65,7 +65,7 @@ def fl_all(
     rel_thresh: float = 0.05,
 ) -> float:
     """
-    Fl-all — fraction of outlier pixels (KITTI metric).
+    Fl-all - fraction of outlier pixels (KITTI metric).
 
     A pixel is an outlier if:
         EPE > epe_thresh  AND  EPE > rel_thresh * ||gt||
@@ -90,7 +90,7 @@ def n_pixel(
     n: float = 1.0,
 ) -> float:
     """
-    N-pixel error — fraction of pixels with EPE > n.
+    N-pixel error - fraction of pixels with EPE > n.
 
     Common thresholds: 1px (Spring), 3px, 5px.
 

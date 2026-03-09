@@ -39,7 +39,7 @@ python -m pytest tests/test_dataloader.py -v -x
 
 | Test Class | Dataset | What it checks |
 |---|---|---|
-| `TestFlowDatasetBase` | — | Base `FlowDataset`: empty length, `__rmul__` repetition |
+| `TestFlowDatasetBase` | - | Base `FlowDataset`: empty length, `__rmul__` repetition |
 | `TestMpiSintel` | Sintel | Discovery, clean/final dstypes, `__getitem__`, `extra_info` |
 | `TestFlyingChairs` | FlyingChairs | Training/validation split, `__getitem__` |
 | `TestKITTI` | KITTI 2015 | Discovery, `extra_info` frame IDs, `__getitem__` |

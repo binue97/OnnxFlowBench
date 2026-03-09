@@ -1,7 +1,7 @@
 """
 Tests for optical flow evaluation metrics.
 
-All tests use synthetic flow data with known expected values — no model or dataset needed.
+All tests use synthetic flow data with known expected values - no model or dataset needed.
 
 Usage:
     python -m pytest tests/test_metrics.py -v

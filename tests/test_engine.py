@@ -52,7 +52,7 @@ def identity_model_path(tmp_path):
 def two_input_model_path(tmp_path):
     """
     Creates an ONNX model that adds two inputs: output = image1 + image2.
-    Input:  "image1" float32 (1, 3, H, W)  — dynamic H, W
+    Input:  "image1" float32 (1, 3, H, W)  - dynamic H, W
     Input:  "image2" float32 (1, 3, H, W)
     Output: "flow"   float32 (1, 3, H, W)
     """
@@ -227,7 +227,7 @@ class TestExtraInputs:
         engine = OnnxEngine(identity_model_path, device="cpu")
         x = np.zeros((1, 3, 64, 64), dtype=np.float32)
         extra = np.zeros((1,), dtype=np.float32)
-        # Should not raise — engine filters to only expected input names
+        # Should not raise - engine filters to only expected input names
         outputs = engine({"input": x, "unused_tensor": extra})
         assert "output" in outputs
         np.testing.assert_array_equal(outputs["output"], x)
