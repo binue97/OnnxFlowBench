@@ -130,26 +130,26 @@ class TestPreprocessFormat:
 
 class TestPreprocessPadding:
     def test_pads_to_divisible(self):
-        adapter = DefaultAdapter(AdapterConfig(padding_factor=32))
+        adapter = DefaultAdapter(AdapterConfig(padding_factor=32, resize_mode="pad"))
         img = _random_image(h=100, w=100)  # not divisible by 32
         feed = adapter.preprocess(img, img)
         _, _, h, w = feed["image1"].shape
         assert h % 32 == 0 and w % 32 == 0
 
     def test_already_divisible_no_change(self):
-        adapter = DefaultAdapter(AdapterConfig(padding_factor=8))
+        adapter = DefaultAdapter(AdapterConfig(padding_factor=8, resize_mode="pad"))
         img = _random_image(h=64, w=64)  # already divisible by 8
         feed = adapter.preprocess(img, img)
         assert feed["image1"].shape == (1, 3, 64, 64)
 
     def test_padding_factor_1_no_pad(self):
-        adapter = DefaultAdapter(AdapterConfig(padding_factor=1))
+        adapter = DefaultAdapter(AdapterConfig(padding_factor=1, resize_mode="pad"))
         img = _random_image(h=37, w=53)
         feed = adapter.preprocess(img, img)
         assert feed["image1"].shape == (1, 3, 37, 53)
 
     def test_zero_padding_mode(self):
-        cfg = AdapterConfig(padding_factor=32, padding_mode="zero")
+        cfg = AdapterConfig(padding_factor=32, padding_mode="zero", resize_mode="pad")
         adapter = DefaultAdapter(cfg)
         img = np.full((30, 30, 3), 128, dtype=np.uint8)
         feed = adapter.preprocess(img, img)
@@ -158,13 +158,69 @@ class TestPreprocessPadding:
         assert tensor[0, 31, 0] == 0.0
 
     def test_replicate_padding_mode(self):
-        cfg = AdapterConfig(padding_factor=32, padding_mode="replicate")
+        cfg = AdapterConfig(padding_factor=32, padding_mode="replicate", resize_mode="pad")
         adapter = DefaultAdapter(cfg)
         img = np.full((30, 30, 3), 128, dtype=np.uint8)
         feed = adapter.preprocess(img, img)
         tensor = feed["image1"][0]  # (3, H, W)
         # Padded region should replicate edge value (128.0)
         assert tensor[0, 31, 0] == 128.0
+
+
+class TestPreprocessInterpolation:
+    def test_interpolation_resizes_to_divisible(self):
+        cfg = AdapterConfig(padding_factor=32, resize_mode="interpolation")
+        adapter = DefaultAdapter(cfg)
+        img = _random_image(h=100, w=100)  # not divisible by 32
+        feed = adapter.preprocess(img, img)
+        _, _, h, w = feed["image1"].shape
+        assert h % 32 == 0 and w % 32 == 0
+        # Should be 128x128 (nearest multiple of 32 >= 100)
+        assert h == 128 and w == 128
+
+    def test_interpolation_already_divisible_no_change(self):
+        cfg = AdapterConfig(padding_factor=8, resize_mode="interpolation")
+        adapter = DefaultAdapter(cfg)
+        img = _random_image(h=64, w=64)
+        feed = adapter.preprocess(img, img)
+        assert feed["image1"].shape == (1, 3, 64, 64)
+
+    def test_interpolation_factor_1_no_resize(self):
+        cfg = AdapterConfig(padding_factor=1, resize_mode="interpolation")
+        adapter = DefaultAdapter(cfg)
+        img = _random_image(h=37, w=53)
+        feed = adapter.preprocess(img, img)
+        assert feed["image1"].shape == (1, 3, 37, 53)
+
+    def test_interpolation_postprocess_restores_size(self):
+        """Output flow should be resized back to original dimensions."""
+        cfg = AdapterConfig(padding_factor=32, resize_mode="interpolation")
+        adapter = DefaultAdapter(cfg)
+        img = _random_image(h=100, w=100)
+        feed = adapter.preprocess(img, img)
+        _, _, ph, pw = feed["image1"].shape
+
+        mock_out = {"flow": _mock_flow_output_chw(ph, pw)}
+        flow = adapter.postprocess(mock_out)
+        assert flow.shape == (100, 100, 2)
+
+    def test_interpolation_postprocess_scales_flow_values(self):
+        """Flow values should be scaled by the resize ratio."""
+        cfg = AdapterConfig(padding_factor=64, resize_mode="interpolation")
+        adapter = DefaultAdapter(cfg)
+        img = _random_image(h=50, w=100)  # -> resized to 64x128
+        feed = adapter.preprocess(img, img)
+        _, _, ph, pw = feed["image1"].shape
+        assert ph == 64 and pw == 128
+
+        # Constant flow of (1.0, 1.0) at resized resolution
+        raw = np.ones((1, 2, ph, pw), dtype=np.float32)
+        flow = adapter.postprocess({"flow": raw})
+        assert flow.shape == (50, 100, 2)
+        # Horizontal flow: scaled by 100/128 = 0.78125
+        np.testing.assert_allclose(flow[25, 50, 0], 100.0 / 128.0, atol=0.05)
+        # Vertical flow: scaled by 50/64 = 0.78125
+        np.testing.assert_allclose(flow[25, 50, 1], 50.0 / 64.0, atol=0.05)
 
 
 class TestPreprocessShape:
@@ -247,7 +303,7 @@ class TestPostprocessBasic:
 
 class TestPostprocessScale:
     def test_scale_multiplies_flow(self):
-        adapter = DefaultAdapter(AdapterConfig(output_scale=2.0))
+        adapter = DefaultAdapter(AdapterConfig(output_scale=2.0, padding_factor=1))
         img = _random_image(h=64, w=64)
         adapter.preprocess(img, img)
 
@@ -259,7 +315,7 @@ class TestPostprocessScale:
 class TestPostprocessUnpad:
     def test_unpad_crops_to_original(self):
         """Padded output should be cropped back to original size."""
-        adapter = DefaultAdapter(AdapterConfig(padding_factor=32))
+        adapter = DefaultAdapter(AdapterConfig(padding_factor=32, resize_mode="pad"))
         img = _random_image(h=100, w=100)
         feed = adapter.preprocess(img, img)
         _, _, padded_h, padded_w = feed["image1"].shape

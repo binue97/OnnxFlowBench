@@ -30,6 +30,7 @@ class AdapterConfig:
     How images are fed to the model:
         "separate" -> two tensors (most models: RAFT, GMA, FlowFormer, ...)
         "concat"   -> one 6-channel tensor (B, 6, H, W)  (PWC-Net, LiteFlowNet, ...)
+        "stacked"  -> one tensor (B, 2, 3, H, W)         (FlowNetS, FlowNet2, ...)
     """
 
     normalization: str = "none"
@@ -43,11 +44,28 @@ class AdapterConfig:
     imagenet_mean: list[float] = field(default_factory=lambda: [0.485, 0.456, 0.406])
     imagenet_std: list[float] = field(default_factory=lambda: [0.229, 0.224, 0.225])
 
+    input_color_order: str = "rgb"
+    """
+    Expected color channel order of the model input:
+        "rgb" -> no conversion needed (default, most models)
+        "bgr" -> flip RGB to BGR before feeding to model
+    """
+
     padding_factor: int = 8
     """Pad spatial dims to be divisible by this factor (8, 16, 32, ...)."""
 
     padding_mode: str = "replicate"
-    """Padding mode: "zero" or "replicate"."""
+    """Padding mode: "zero" or "replicate". Only used when resize_mode="pad"."""
+
+    resize_mode: str = "interpolation"
+    """
+    How to make spatial dims divisible by padding_factor:
+        "interpolation" -> bilinear resize to nearest multiple, resize-back in postprocess (default)
+        "pad"           -> pad with padding_mode, crop in postprocess
+    """
+
+    interpolation_align_corners: bool = True
+    """align_corners for interpolation resize (matches PyTorch convention)."""
 
     # ── Output ────────────────────────────────────────────────────────────────
 

@@ -20,14 +20,18 @@ from core.default_adapter import DefaultAdapter
 
 ADAPTER_REGISTRY: dict[str, AdapterConfig | type[ModelAdapter]] = {
     # ── FlowNetS ─────────────────────────────
+    # Exported with skip_preprocess=False: preprocessing (mean subtraction,
+    # BGR->RGB flip, bilinear resize) and postprocessing (resize-back +
+    # flow scaling) are baked into the ONNX graph.
     "flownets": AdapterConfig(
-        input_names=["input"],
-        input_format="concat",
+        input_names=["images"],
+        input_format="stacked",
         normalization="unit",
-        padding_factor=64,
-        output_scale=20.0,
-        output_resolution="quarter",
-        scale_flow_with_upsample=False, # TODO(bnu): This is not sure.
+        input_color_order="bgr",
+        padding_factor=1,
+        output_scale=1.0,
+        output_resolution="full",
+        scale_flow_with_upsample=False,
     ),
     # ── PWC-Net ──────────────────────────────
     "pwcnet": AdapterConfig(
@@ -35,6 +39,7 @@ ADAPTER_REGISTRY: dict[str, AdapterConfig | type[ModelAdapter]] = {
         input_format="concat",
         normalization="unit",
         padding_factor=64,
+        resize_mode="pad",
         output_scale=20.0,
         output_resolution="quarter",
         scale_flow_with_upsample=False, # TODO(bnu): This is not sure.
@@ -44,6 +49,7 @@ ADAPTER_REGISTRY: dict[str, AdapterConfig | type[ModelAdapter]] = {
         input_names=["image1", "image2"],
         normalization="none",
         padding_factor=8,
+        resize_mode="pad",
     ),
 }
 
