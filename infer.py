@@ -44,6 +44,7 @@ def load_image(path: str) -> np.ndarray:
 def save_results(
     output_dir: str,
     flow_pred: np.ndarray,
+    name: str = "flow_pred",
     png: bool = False,
     flo: bool = False,
     npy: bool = False,
@@ -52,18 +53,18 @@ def save_results(
     os.makedirs(output_dir, exist_ok=True)
 
     if png:
-        path = os.path.join(output_dir, "flow_pred.png")
+        path = os.path.join(output_dir, f"{name}.png")
         flow_viz = flow_to_image(flow_pred)
         Image.fromarray(flow_viz).save(path)
         print(f"  Saved: {path}")
 
     if flo:
-        path = os.path.join(output_dir, "flow_pred.flo")
+        path = os.path.join(output_dir, f"{name}.flo")
         writeFlow(path, flow_pred)
         print(f"  Saved: {path}")
 
     if npy:
-        path = os.path.join(output_dir, "flow_pred.npy")
+        path = os.path.join(output_dir, f"{name}.npy")
         np.save(path, flow_pred)
         print(f"  Saved: {path}")
 
@@ -110,10 +111,12 @@ def main():
     # ── Save outputs ──────────────────────────────────────────────────────────
     if args.output:
         assert args.png or args.flo or args.npy, "Specify at least one output format with --png, --flo, or --npy"
+        name = os.path.splitext(os.path.basename(args.img1))[0]
         print(f"Saving results to {args.output}")
         save_results(
             args.output,
             flow_pred,
+            name=name,
             png=args.png,
             flo=args.flo,
             npy=args.npy,
