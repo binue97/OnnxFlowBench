@@ -65,7 +65,8 @@ class OnnxEngine:
 
         sess_options = ort.SessionOptions()
         sess_options.graph_optimization_level = (
-            ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            # ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            ort.GraphOptimizationLevel.ORT_DISABLE_ALL
         )
 
         self.session = ort.InferenceSession(
