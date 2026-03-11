@@ -1,8 +1,8 @@
 """
-Config-driven ModelAdapter that handles ~80% of optical flow models.
+Config-driven ModelAdapter that handles general optical flow models.
 
-All model-specific behaviour is expressed via AdapterConfig.
-For models that need custom logic, subclass ModelAdapter directly.
+All model-specific behaviour is configured via AdapterConfig.
+For models that need custom pre/post processing, create new Adapter that subclass ModelAdapter directly.
 """
 
 import numpy as np
@@ -13,24 +13,7 @@ from core.adapter_config import AdapterConfig
 
 
 class DefaultAdapter(ModelAdapter):
-    """
-    Generic adapter driven entirely by an AdapterConfig.
-
-    Preprocessing pipeline:
-        1. Convert uint8 -> float32
-        2. Normalize (none / unit / imagenet)
-        3. Transpose HWC -> CHW, add batch dim -> (1, 3, H, W)
-        4. Pad to multiple of padding_factor
-        5. Format inputs (separate / concat)
-
-    Postprocessing pipeline:
-        1. Select the flow output tensor
-        2. Remove batch dim
-        3. Reformat to (H, W, 2)
-        4. Apply output_scale
-        5. Upsample if output_resolution != "full"
-        6. Remove padding (crop to original size)
-    """
+    """Generic adapter driven entirely by an AdapterConfig."""
 
     _RESOLUTION_FACTOR = {
         "full": 1,
@@ -44,9 +27,8 @@ class DefaultAdapter(ModelAdapter):
         self._original_h: int = 0
         self._original_w: int = 0
 
-    # ── Preprocess ────────────────────────────────────────────────────────────
-
     def preprocess(self, img1: np.ndarray, img2: np.ndarray) -> dict[str, np.ndarray]:
+        """Preprocess two raw images into an ONNX input feed according to the config."""
         self._original_h, self._original_w = img1.shape[:2]
 
         img1 = self._normalize(img1.astype(np.float32))
@@ -61,7 +43,7 @@ class DefaultAdapter(ModelAdapter):
         img1 = np.transpose(img1, (2, 0, 1))
         img2 = np.transpose(img2, (2, 0, 1))
 
-        # Resize to stride multiple (pad or interpolation)
+        # Resize input images (pad or interpolation)
         img1 = self._resize_input(img1)
         img2 = self._resize_input(img2)
 
@@ -72,16 +54,30 @@ class DefaultAdapter(ModelAdapter):
         # Format inputs
         cfg = self.config
         if cfg.input_format == "concat":
-            concat = np.concatenate([img1, img2], axis=1)  # (1, 6, H, W)
+            # (1, 6, H, W)
+            concat = np.concatenate([img1, img2], axis=1)
             return {cfg.input_names[0]: concat}
         elif cfg.input_format == "stacked":
-            stacked = np.stack([img1, img2], axis=1)  # (1, 2, 3, H, W)
+            # (1, 2, 3, H, W)
+            stacked = np.stack([img1, img2], axis=1)
             return {cfg.input_names[0]: stacked}
-        else:  # "separate"
+        else:
+            # (1, 3, H, W) x 2
             return {
                 cfg.input_names[0]: img1,
                 cfg.input_names[1]: img2,
             }
+
+    def postprocess(self, outputs: dict[str, np.ndarray]) -> np.ndarray:
+        """Postprocess raw ONNX outputs into standard flow format according to the config."""
+        flow = self._select_output(outputs)
+        flow = self._remove_batch_dim(flow)
+        flow = self._to_hwc(flow)
+        flow = flow * self.config.output_scale
+        flow = self._resize_output(flow)
+        return flow
+
+    # ── Utilities ─────────────────────────────────────────────────────────────────
 
     def _normalize(self, img: np.ndarray) -> np.ndarray:
         """Apply normalization to a (H, W, 3) float32 image."""
@@ -100,17 +96,17 @@ class DefaultAdapter(ModelAdapter):
             raise ValueError(f"Unknown normalization mode: {mode!r}")
 
     def _resize_input(self, img: np.ndarray) -> np.ndarray:
-        """Resize a (C, H, W) array so H and W are divisible by padding_factor."""
-        if self.config.resize_mode == "pad":
-            return self._pad(img)
-        elif self.config.resize_mode == "interpolation":
+        """Resize a (C, H, W) array so H and W are divisible by resizing_factor."""
+        if self.config.resize_mode == "interpolation":
             return self._interpolate_input(img)
+        elif self.config.resize_mode == "pad":
+            return self._pad(img)
         else:
             raise ValueError(f"Unknown resize_mode: {self.config.resize_mode!r}")
 
     def _pad(self, img: np.ndarray) -> np.ndarray:
-        """Pad a (C, H, W) array so H and W are divisible by padding_factor."""
-        factor = self.config.padding_factor
+        """Pad a (C, H, W) array so H and W are divisible by resizing_factor."""
+        factor = self.config.resizing_factor
         if factor <= 1:
             return img
         _, h, w = img.shape
@@ -134,8 +130,8 @@ class DefaultAdapter(ModelAdapter):
             raise ValueError(f"Unknown padding mode: {self.config.padding_mode!r}")
 
     def _interpolate_input(self, img: np.ndarray) -> np.ndarray:
-        """Resize a (C, H, W) array via interpolation so dims are divisible by padding_factor."""
-        factor = self.config.padding_factor
+        """Resize a (C, H, W) array via interpolation so dims are divisible by resizing_factor."""
+        factor = self.config.resizing_factor
         if factor <= 1:
             return img
         _, h, w = img.shape
@@ -143,20 +139,10 @@ class DefaultAdapter(ModelAdapter):
         new_w = int(np.ceil(w / factor) * factor)
         if new_h == h and new_w == w:
             return img
-        # Transpose to (H, W, C) for cv2.resize, then back
-        hwc = np.transpose(img, (1, 2, 0))  # (H, W, C)
+        # Transpose to (H, W, C) for cv2.resize, then back to (C, H, W)
+        hwc = np.transpose(img, (1, 2, 0))
         hwc_resized = cv2.resize(hwc, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-        return np.transpose(hwc_resized, (2, 0, 1))  # (C, H, W)
-
-    # ── Postprocess ───────────────────────────────────────────────────────────
-
-    def postprocess(self, outputs: dict[str, np.ndarray]) -> np.ndarray:
-        flow = self._select_output(outputs)
-        flow = self._remove_batch_dim(flow)
-        flow = self._to_hwc(flow)
-        flow = flow * self.config.output_scale
-        flow = self._resize_output(flow)
-        return flow
+        return np.transpose(hwc_resized, (2, 0, 1))
 
     def _select_output(self, outputs: dict[str, np.ndarray]) -> np.ndarray:
         """Pick the flow tensor from possibly multiple outputs."""
@@ -175,13 +161,6 @@ class DefaultAdapter(ModelAdapter):
                 )
             return outputs[key]
 
-    @staticmethod
-    def _remove_batch_dim(x: np.ndarray) -> np.ndarray:
-        """Squeeze all leading size-1 dims, e.g. (1,1,2,H,W) -> (2,H,W)."""
-        while x.ndim > 3 and x.shape[0] == 1:
-            x = x[0]
-        return x
-
     def _to_hwc(self, flow: np.ndarray) -> np.ndarray:
         """Convert to (H, W, 2) regardless of input layout."""
         layout = self.config.output_layout
@@ -198,38 +177,58 @@ class DefaultAdapter(ModelAdapter):
         h, w = flow.shape[:2]
         target_h, target_w = self._original_h, self._original_w
 
-        # Step 1: upsample if model outputs at sub-resolution (e.g. quarter)
         res = self.config.output_resolution
         scale = self._RESOLUTION_FACTOR.get(res)
         if scale is None:
             raise ValueError(f"Unknown output_resolution: {res!r}")
-        if scale > 1:
-            target_h_up, target_w_up = h * scale, w * scale
+
+        if self.config.resize_mode == "interpolation":
+            # Single resize: upsample sub-resolution and undo input interpolation
+            # in one step to avoid an extra interpolation pass.
             flow = self._resize_flow(
-                flow, target_h_up, target_w_up,
+                flow,
+                target_h,
+                target_w,
                 scale_flow=self.config.scale_flow_with_upsample,
             )
-
-        # Step 2: undo the input resize (crop for pad, interpolate for interpolation)
-        if self.config.resize_mode == "pad":
-            flow = flow[: target_h, : target_w]
-        elif self.config.resize_mode == "interpolation":
-            flow = self._resize_flow(flow, target_h, target_w, scale_flow=True)
+        elif self.config.resize_mode == "pad":
+            # Upsample first (resize), then crop
+            if scale > 1:
+                flow = self._resize_flow(
+                    flow,
+                    h * scale,
+                    w * scale,
+                    scale_flow=self.config.scale_flow_with_upsample,
+                )
+            # Crop to original size
+            flow = flow[:target_h, :target_w]
         else:
             raise ValueError(f"Unknown resize_mode: {self.config.resize_mode!r}")
 
         return flow
 
     @staticmethod
+    def _remove_batch_dim(x: np.ndarray) -> np.ndarray:
+        """Squeeze all leading size-1 dims, e.g. (1,1,2,H,W) -> (2,H,W)."""
+        while x.ndim > 3 and x.shape[0] == 1:
+            x = x[0]
+        return x
+
+    @staticmethod
     def _resize_flow(
-        flow: np.ndarray, target_h: int, target_w: int, scale_flow: bool = True,
+        flow: np.ndarray,
+        target_h: int,
+        target_w: int,
+        scale_flow: bool = True,
     ) -> np.ndarray:
         """Resize (H, W, 2) flow to target size, optionally scaling values proportionally."""
         h, w = flow.shape[:2]
         if h == target_h and w == target_w:
             return flow
         flow_resized = cv2.resize(
-            flow, (target_w, target_h), interpolation=cv2.INTER_LINEAR,
+            flow,
+            (target_w, target_h),
+            interpolation=cv2.INTER_LINEAR,
         )
         if scale_flow:
             flow_resized[..., 0] *= target_w / w  # horizontal

@@ -17,24 +17,7 @@ from core.registry import get_adapter
 
 
 class FlowModel:
-    """
-    Optical flow predictor: two images in -> flow out.
-
-    Combines:
-        - OnnxEngine  (session management, raw inference)
-        - ModelAdapter (model-specific pre/post processing)
-
-    Example:
-        model = FlowModel("raft_things.onnx", adapter="raft", device="cuda")
-        flow = model.predict(img1, img2)   # (H, W, 2) float32, pixel units
-
-        # Or with a custom adapter config
-        model = FlowModel("my_model.onnx", adapter=AdapterConfig(
-            input_names=["img1", "img2"],
-            normalization="unit",
-            padding_factor=32,
-        ))
-    """
+    """Optical flow model that combines ONNXEngine + ModelAdapter."""
 
     def __init__(
         self,

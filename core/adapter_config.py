@@ -1,10 +1,5 @@
 """
 Configuration dataclass for the DefaultAdapter.
-
-Covers the common axes of variation across optical flow models:
-    - Input normalization, layout, and naming
-    - Padding strategy
-    - Output selection, layout, scale, and resolution
 """
 
 from dataclasses import dataclass, field
@@ -15,9 +10,9 @@ class AdapterConfig:
     """
     Declarative configuration for DefaultAdapter.
 
-    Covers ~80% of optical flow models without writing custom code.
+    Covers general optical flow models without writing custom code for every model.
     For models that need special logic (tiling, multi-pass, etc.),
-    subclass ModelAdapter directly instead.
+    create a new adapter class that subclasses ModelAdapter.
     """
 
     # ── Input ─────────────────────────────────────────────────────────────────
@@ -28,17 +23,17 @@ class AdapterConfig:
     input_format: str = "separate"
     """
     How images are fed to the model:
-        "separate" -> two tensors (most models: RAFT, GMA, FlowFormer, ...)
-        "concat"   -> one 6-channel tensor (B, 6, H, W)  (PWC-Net, LiteFlowNet, ...)
-        "stacked"  -> one tensor (B, 2, 3, H, W)         (FlowNetS, FlowNet2, ...)
+        "separate" -> two tensors
+        "concat"   -> one 6-channel tensor (B, 6, H, W)
+        "stacked"  -> one tensor (B, 2, 3, H, W)
     """
 
-    normalization: str = "none"
+    normalization: str = "unit"
     """
     Pixel normalization before inference:
-        "none"     -> keep [0, 255]      (RAFT, GMA, ...)
-        "unit"     -> scale to [0, 1]    (PWC-Net, ...)
-        "imagenet" -> ImageNet mean/std  (FlowFormer, ...)
+        "none"     -> keep [0, 255]
+        "unit"     -> scale to [0, 1]
+        "imagenet" -> ImageNet mean/std
     """
 
     imagenet_mean: list[float] = field(default_factory=lambda: [0.485, 0.456, 0.406])
@@ -51,21 +46,21 @@ class AdapterConfig:
         "bgr" -> flip RGB to BGR before feeding to model
     """
 
-    padding_factor: int = 8
-    """Pad spatial dims to be divisible by this factor (8, 16, 32, ...)."""
+    resizing_factor: int = 8
+    """Resize spatial dims to be divisible by this factor (8, 16, 32, ...)."""
 
     padding_mode: str = "replicate"
     """Padding mode: "zero" or "replicate". Only used when resize_mode="pad"."""
 
     resize_mode: str = "interpolation"
     """
-    How to make spatial dims divisible by padding_factor:
-        "interpolation" -> bilinear resize to nearest multiple, resize-back in postprocess (default)
+    How to make spatial dims divisible by resizing_factor:
+        "interpolation" -> bilinear resize to nearest multiple, resize-back in postprocess
         "pad"           -> pad with padding_mode, crop in postprocess
     """
 
     interpolation_align_corners: bool = True
-    """align_corners for interpolation resize (matches PyTorch convention)."""
+    """align_corners for interpolation resize."""
 
     # ── Output ────────────────────────────────────────────────────────────────
 
@@ -78,21 +73,20 @@ class AdapterConfig:
     output_layout: str = "CHW"
     """
     Layout of the flow output tensor (after removing batch dim):
-        "CHW" -> (2, H, W)  - most models
+        "CHW" -> (2, H, W)
         "HWC" -> (H, W, 2)
     """
 
     output_scale: float = 1.0
     """
-    Multiplier applied to raw flow values.
-    Most models output pixel-unit flow (scale=1.0).
+    Multiplier applied to raw output flow.
     """
 
     output_resolution: str = "full"
     """
     Resolution of the model's flow output relative to input:
-        "full"    -> same as input (most models)
-        "quarter" -> 1/4 resolution (PWC-Net, ...)
+        "full"    -> same as input
+        "quarter" -> 1/4 resolution
         "eighth"  -> 1/8 resolution
     """
 
@@ -102,6 +96,6 @@ class AdapterConfig:
     scale_flow_with_upsample: bool = True
     """
     Whether to scale flow magnitudes by the upsample factor.
-        True  -> flow values are in sub-resolution pixel units (most models)
+        True  -> flow values are in sub-resolution pixel units
         False -> flow values are already in full-resolution pixel units
     """

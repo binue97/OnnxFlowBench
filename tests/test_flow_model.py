@@ -136,7 +136,7 @@ class TestConstruction:
         assert isinstance(model.adapter, DefaultAdapter)
 
     def test_with_adapter_config(self, add_model_path):
-        cfg = AdapterConfig(normalization="unit", padding_factor=16)
+        cfg = AdapterConfig(normalization="unit", resizing_factor=16)
         model = FlowModel(add_model_path, adapter=cfg, device="cpu")
         assert isinstance(model.adapter, DefaultAdapter)
         assert model.adapter.config.normalization == "unit"
@@ -202,7 +202,7 @@ class TestPredictDefaultAdapter:
         cfg = AdapterConfig(
             input_names=["image1", "image2"],
             normalization="none",
-            padding_factor=8,
+            resizing_factor=8,
             output_name="flow",
             # The model outputs 3 channels, not 2.
             # We'll test the pipeline doesn't crash - the CHW->HWC will produce (H,W,3).
@@ -219,7 +219,7 @@ class TestPredictDefaultAdapter:
         cfg = AdapterConfig(
             input_names=["image1", "image2"],
             normalization="none",
-            padding_factor=32,
+            resizing_factor=32,
             output_name="flow",
         )
         model = FlowModel(add_model_path, adapter=cfg, device="cpu")
@@ -233,7 +233,7 @@ class TestPredictDefaultAdapter:
         cfg = AdapterConfig(
             input_names=["image1", "image2"],
             normalization="unit",
-            padding_factor=1,
+            resizing_factor=1,
             output_name="flow",
         )
         model = FlowModel(add_model_path, adapter=cfg, device="cpu")

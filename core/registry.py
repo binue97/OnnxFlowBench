@@ -1,10 +1,5 @@
 """
 Adapter registry - maps model names to adapters.
-
-Usage:
-    adapter = get_adapter("flownets")      # -> DefaultAdapter with FlowNetS config
-    adapter = get_adapter("raft")          # -> DefaultAdapter with RAFT config
-    adapter = get_adapter("my_custom", **overrides)
 """
 
 from dataclasses import replace
@@ -19,36 +14,33 @@ from core.default_adapter import DefaultAdapter
 # ═══════════════════════════════════════════════════════════════════════════════
 
 ADAPTER_REGISTRY: dict[str, AdapterConfig | type[ModelAdapter]] = {
-    # ── FlowNetS ─────────────────────────────
-    # Exported with skip_preprocess=False: preprocessing (mean subtraction,
-    # BGR->RGB flip, bilinear resize) and postprocessing (resize-back +
-    # flow scaling) are baked into the ONNX graph.
+    # FlowNetS
     "flownets": AdapterConfig(
         input_names=["images"],
         input_format="stacked",
         normalization="unit",
         input_color_order="bgr",
-        padding_factor=1,
+        resizing_factor=1,
         output_scale=1.0,
         output_resolution="full",
         scale_flow_with_upsample=False,
     ),
-    # ── PWC-Net ──────────────────────────────
+    # PWC-Net
     "pwcnet": AdapterConfig(
         input_names=["input"],
         input_format="concat",
         normalization="unit",
-        padding_factor=64,
+        resizing_factor=64,
         resize_mode="pad",
         output_scale=20.0,
         output_resolution="quarter",
-        scale_flow_with_upsample=False, # TODO(bnu): This is not sure.
+        scale_flow_with_upsample=False,
     ),
-    # ── RAFT ─────────────────────────────────
+    # RAFT
     "raft": AdapterConfig(
         input_names=["image1", "image2"],
         normalization="none",
-        padding_factor=8,
+        resizing_factor=8,
         resize_mode="pad",
     ),
 }
@@ -64,16 +56,8 @@ def list_adapters() -> list[str]:
     return list(ADAPTER_REGISTRY.keys())
 
 
-def register_adapter(
-    name: str, entry: AdapterConfig | type[ModelAdapter]
-) -> None:
-    """
-    Register a new adapter (config or custom class).
-
-    Args:
-        name:  Lookup key (e.g. "my_model").
-        entry: Either an AdapterConfig (for DefaultAdapter) or a ModelAdapter subclass.
-    """
+def register_adapter(name: str, entry: AdapterConfig | type[ModelAdapter]) -> None:
+    """Register a new adapter (config or custom class)."""
     ADAPTER_REGISTRY[name] = entry
 
 
@@ -85,12 +69,6 @@ def get_adapter(name: str, **overrides) -> ModelAdapter:
         name:      Registered model name (e.g. "raft", "pwcnet").
         overrides: Keyword args to override fields in AdapterConfig.
                    Ignored for custom ModelAdapter classes.
-
-    Returns:
-        A ModelAdapter instance.
-
-    Raises:
-        KeyError: If name is not registered.
     """
     name = name.lower()
     if name not in ADAPTER_REGISTRY:

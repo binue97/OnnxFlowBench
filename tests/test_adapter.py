@@ -57,7 +57,7 @@ class TestAdapterConfig:
         assert cfg.input_names == ["image1", "image2"]
         assert cfg.input_format == "separate"
         assert cfg.normalization == "none"
-        assert cfg.padding_factor == 8
+        assert cfg.resizing_factor == 8
         assert cfg.output_layout == "CHW"
         assert cfg.output_scale == 1.0
         assert cfg.output_resolution == "full"
@@ -67,11 +67,11 @@ class TestAdapterConfig:
             input_names=["input"],
             input_format="concat",
             normalization="unit",
-            padding_factor=64,
+            resizing_factor=64,
         )
         assert cfg.input_format == "concat"
         assert cfg.normalization == "unit"
-        assert cfg.padding_factor == 64
+        assert cfg.resizing_factor == 64
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -130,26 +130,26 @@ class TestPreprocessFormat:
 
 class TestPreprocessPadding:
     def test_pads_to_divisible(self):
-        adapter = DefaultAdapter(AdapterConfig(padding_factor=32, resize_mode="pad"))
+        adapter = DefaultAdapter(AdapterConfig(resizing_factor=32, resize_mode="pad"))
         img = _random_image(h=100, w=100)  # not divisible by 32
         feed = adapter.preprocess(img, img)
         _, _, h, w = feed["image1"].shape
         assert h % 32 == 0 and w % 32 == 0
 
     def test_already_divisible_no_change(self):
-        adapter = DefaultAdapter(AdapterConfig(padding_factor=8, resize_mode="pad"))
+        adapter = DefaultAdapter(AdapterConfig(resizing_factor=8, resize_mode="pad"))
         img = _random_image(h=64, w=64)  # already divisible by 8
         feed = adapter.preprocess(img, img)
         assert feed["image1"].shape == (1, 3, 64, 64)
 
-    def test_padding_factor_1_no_pad(self):
-        adapter = DefaultAdapter(AdapterConfig(padding_factor=1, resize_mode="pad"))
+    def test_resizing_factor_1_no_pad(self):
+        adapter = DefaultAdapter(AdapterConfig(resizing_factor=1, resize_mode="pad"))
         img = _random_image(h=37, w=53)
         feed = adapter.preprocess(img, img)
         assert feed["image1"].shape == (1, 3, 37, 53)
 
     def test_zero_padding_mode(self):
-        cfg = AdapterConfig(padding_factor=32, padding_mode="zero", resize_mode="pad")
+        cfg = AdapterConfig(resizing_factor=32, padding_mode="zero", resize_mode="pad")
         adapter = DefaultAdapter(cfg)
         img = np.full((30, 30, 3), 128, dtype=np.uint8)
         feed = adapter.preprocess(img, img)
@@ -158,7 +158,7 @@ class TestPreprocessPadding:
         assert tensor[0, 31, 0] == 0.0
 
     def test_replicate_padding_mode(self):
-        cfg = AdapterConfig(padding_factor=32, padding_mode="replicate", resize_mode="pad")
+        cfg = AdapterConfig(resizing_factor=32, padding_mode="replicate", resize_mode="pad")
         adapter = DefaultAdapter(cfg)
         img = np.full((30, 30, 3), 128, dtype=np.uint8)
         feed = adapter.preprocess(img, img)
@@ -169,7 +169,7 @@ class TestPreprocessPadding:
 
 class TestPreprocessInterpolation:
     def test_interpolation_resizes_to_divisible(self):
-        cfg = AdapterConfig(padding_factor=32, resize_mode="interpolation")
+        cfg = AdapterConfig(resizing_factor=32, resize_mode="interpolation")
         adapter = DefaultAdapter(cfg)
         img = _random_image(h=100, w=100)  # not divisible by 32
         feed = adapter.preprocess(img, img)
@@ -179,14 +179,14 @@ class TestPreprocessInterpolation:
         assert h == 128 and w == 128
 
     def test_interpolation_already_divisible_no_change(self):
-        cfg = AdapterConfig(padding_factor=8, resize_mode="interpolation")
+        cfg = AdapterConfig(resizing_factor=8, resize_mode="interpolation")
         adapter = DefaultAdapter(cfg)
         img = _random_image(h=64, w=64)
         feed = adapter.preprocess(img, img)
         assert feed["image1"].shape == (1, 3, 64, 64)
 
     def test_interpolation_factor_1_no_resize(self):
-        cfg = AdapterConfig(padding_factor=1, resize_mode="interpolation")
+        cfg = AdapterConfig(resizing_factor=1, resize_mode="interpolation")
         adapter = DefaultAdapter(cfg)
         img = _random_image(h=37, w=53)
         feed = adapter.preprocess(img, img)
@@ -194,7 +194,7 @@ class TestPreprocessInterpolation:
 
     def test_interpolation_postprocess_restores_size(self):
         """Output flow should be resized back to original dimensions."""
-        cfg = AdapterConfig(padding_factor=32, resize_mode="interpolation")
+        cfg = AdapterConfig(resizing_factor=32, resize_mode="interpolation")
         adapter = DefaultAdapter(cfg)
         img = _random_image(h=100, w=100)
         feed = adapter.preprocess(img, img)
@@ -206,7 +206,7 @@ class TestPreprocessInterpolation:
 
     def test_interpolation_postprocess_scales_flow_values(self):
         """Flow values should be scaled by the resize ratio."""
-        cfg = AdapterConfig(padding_factor=64, resize_mode="interpolation")
+        cfg = AdapterConfig(resizing_factor=64, resize_mode="interpolation")
         adapter = DefaultAdapter(cfg)
         img = _random_image(h=50, w=100)  # -> resized to 64x128
         feed = adapter.preprocess(img, img)
@@ -303,7 +303,7 @@ class TestPostprocessBasic:
 
 class TestPostprocessScale:
     def test_scale_multiplies_flow(self):
-        adapter = DefaultAdapter(AdapterConfig(output_scale=2.0, padding_factor=1))
+        adapter = DefaultAdapter(AdapterConfig(output_scale=2.0, resizing_factor=1))
         img = _random_image(h=64, w=64)
         adapter.preprocess(img, img)
 
@@ -315,7 +315,7 @@ class TestPostprocessScale:
 class TestPostprocessUnpad:
     def test_unpad_crops_to_original(self):
         """Padded output should be cropped back to original size."""
-        adapter = DefaultAdapter(AdapterConfig(padding_factor=32, resize_mode="pad"))
+        adapter = DefaultAdapter(AdapterConfig(resizing_factor=32, resize_mode="pad"))
         img = _random_image(h=100, w=100)
         feed = adapter.preprocess(img, img)
         _, _, padded_h, padded_w = feed["image1"].shape
@@ -328,7 +328,7 @@ class TestPostprocessUnpad:
 class TestPostprocessUpsample:
     def test_quarter_resolution_upsampled(self):
         adapter = DefaultAdapter(
-            AdapterConfig(output_resolution="quarter", padding_factor=1)
+            AdapterConfig(output_resolution="quarter", resizing_factor=1)
         )
         img = _random_image(h=64, w=64)
         adapter.preprocess(img, img)
@@ -340,7 +340,7 @@ class TestPostprocessUpsample:
 
     def test_full_resolution_no_upsample(self):
         adapter = DefaultAdapter(
-            AdapterConfig(output_resolution="full", padding_factor=1)
+            AdapterConfig(output_resolution="full", resizing_factor=1)
         )
         img = _random_image(h=64, w=64)
         adapter.preprocess(img, img)
@@ -352,7 +352,7 @@ class TestPostprocessUpsample:
     def test_upsample_scales_flow_values(self):
         """Upsampled flow values should be multiplied by the scale factor."""
         adapter = DefaultAdapter(
-            AdapterConfig(output_resolution="quarter", padding_factor=1)
+            AdapterConfig(output_resolution="quarter", resizing_factor=1)
         )
         img = _random_image(h=64, w=64)
         adapter.preprocess(img, img)
@@ -426,11 +426,11 @@ class TestRegistry:
         assert type(a1) is type(a2)
 
     def test_overrides(self):
-        adapter = get_adapter("raft", padding_factor=64)
-        assert adapter.config.padding_factor == 64
+        adapter = get_adapter("raft", resizing_factor=64)
+        assert adapter.config.resizing_factor == 64
         # Original registry entry should be unchanged
         original = get_adapter("raft")
-        assert original.config.padding_factor == 8
+        assert original.config.resizing_factor == 8
 
     def test_register_config(self):
         register_adapter(

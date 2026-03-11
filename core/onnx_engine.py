@@ -77,8 +77,6 @@ class OnnxEngine:
         self._input_specs = self._build_input_specs()
         self._output_specs = self._build_output_specs()
 
-    # ── Introspection ─────────────────────────────────────────────────────────
-
     @property
     def input_specs(self) -> list[TensorSpec]:
         """Input tensor specifications (name, shape, dtype)."""
