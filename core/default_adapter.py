@@ -86,11 +86,11 @@ class DefaultAdapter(ModelAdapter):
             return img
         elif mode == "unit":
             return img / 255.0
-        elif mode == "imagenet":
-            mean = np.array(self.config.imagenet_mean, dtype=np.float32).reshape(
+        elif mode == "meanstd":
+            mean = np.array(self.config.normalize_mean, dtype=np.float32).reshape(
                 1, 1, 3
             )
-            std = np.array(self.config.imagenet_std, dtype=np.float32).reshape(1, 1, 3)
+            std = np.array(self.config.normalize_std, dtype=np.float32).reshape(1, 1, 3)
             return (img / 255.0 - mean) / std
         else:
             raise ValueError(f"Unknown normalization mode: {mode!r}")

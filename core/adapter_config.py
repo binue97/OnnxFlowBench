@@ -33,11 +33,11 @@ class AdapterConfig:
     Pixel normalization before inference:
         "none"     -> keep [0, 255]
         "unit"     -> scale to [0, 1]
-        "imagenet" -> ImageNet mean/std
+        "meanstd"  -> (img/255 - mean) / std  (defaults to ImageNet stats)
     """
 
-    imagenet_mean: list[float] = field(default_factory=lambda: [0.485, 0.456, 0.406])
-    imagenet_std: list[float] = field(default_factory=lambda: [0.229, 0.224, 0.225])
+    normalize_mean: list[float] = field(default_factory=lambda: [0.485, 0.456, 0.406])
+    normalize_std: list[float] = field(default_factory=lambda: [0.229, 0.224, 0.225])
 
     input_color_order: str = "rgb"
     """

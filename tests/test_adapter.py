@@ -56,7 +56,7 @@ class TestAdapterConfig:
         cfg = AdapterConfig()
         assert cfg.input_names == ["image1", "image2"]
         assert cfg.input_format == "separate"
-        assert cfg.normalization == "none"
+        assert cfg.normalization == "unit"
         assert cfg.resizing_factor == 8
         assert cfg.output_layout == "CHW"
         assert cfg.output_scale == 1.0
@@ -97,8 +97,8 @@ class TestPreprocessNormalization:
         assert tensor.min() >= 0.0
         assert tensor.max() <= 1.0
 
-    def test_imagenet_mean_centered(self):
-        adapter = DefaultAdapter(AdapterConfig(normalization="imagenet"))
+    def test_meanstd_normalization(self):
+        adapter = DefaultAdapter(AdapterConfig(normalization="meanstd"))
         # Use a constant white image so we can predict the output
         img = np.full((8, 8, 3), 255, dtype=np.uint8)
         feed = adapter.preprocess(img, img)
@@ -158,7 +158,8 @@ class TestPreprocessPadding:
         assert tensor[0, 31, 0] == 0.0
 
     def test_replicate_padding_mode(self):
-        cfg = AdapterConfig(resizing_factor=32, padding_mode="replicate", resize_mode="pad")
+        cfg = AdapterConfig(resizing_factor=32, padding_mode="replicate", resize_mode="pad",
+                            normalization="none")
         adapter = DefaultAdapter(cfg)
         img = np.full((30, 30, 3), 128, dtype=np.uint8)
         feed = adapter.preprocess(img, img)
