@@ -1,48 +1,22 @@
 """
-Adapter registry - maps model names to adapters.
+Adapter registry — maps model names to adapter classes.
+
+Built-in adapters: ``flownets``, ``pwcnet``, ``raft``.
+Register your own with :func:`register_adapter`.
 """
 
-from dataclasses import replace
-
 from core.base_adapter import ModelAdapter
-from core.adapter_config import AdapterConfig
-from core.default_adapter import DefaultAdapter
+from core.adapters import FlowNetSAdapter, PWCNetAdapter, RAFTAdapter
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Built-in adapter configs for well-known models
+# Built-in adapters for well-known models
 # ═══════════════════════════════════════════════════════════════════════════════
 
-ADAPTER_REGISTRY: dict[str, AdapterConfig | type[ModelAdapter]] = {
-    # FlowNetS
-    "flownets": AdapterConfig(
-        input_names=["images"],
-        input_format="stacked",
-        normalization="unit",
-        input_color_order="bgr",
-        resizing_factor=1,
-        output_scale=1.0,
-        output_resolution="full",
-        scale_flow_with_upsample=False,
-    ),
-    # PWC-Net
-    "pwcnet": AdapterConfig(
-        input_names=["input"],
-        input_format="concat",
-        normalization="unit",
-        resizing_factor=64,
-        resize_mode="pad",
-        output_scale=20.0,
-        output_resolution="quarter",
-        scale_flow_with_upsample=False,
-    ),
-    # RAFT
-    "raft": AdapterConfig(
-        input_names=["image1", "image2"],
-        normalization="none",
-        resizing_factor=8,
-        resize_mode="pad",
-    ),
+ADAPTER_REGISTRY: dict[str, type[ModelAdapter]] = {
+    "flownets": FlowNetSAdapter,
+    "pwcnet": PWCNetAdapter,
+    "raft": RAFTAdapter,
 }
 
 
@@ -56,19 +30,28 @@ def list_adapters() -> list[str]:
     return list(ADAPTER_REGISTRY.keys())
 
 
-def register_adapter(name: str, entry: AdapterConfig | type[ModelAdapter]) -> None:
-    """Register a new adapter (config or custom class)."""
-    ADAPTER_REGISTRY[name] = entry
-
-
-def get_adapter(name: str, **overrides) -> ModelAdapter:
-    """
-    Look up an adapter by name and return a ready-to-use instance.
+def register_adapter(name: str, adapter_class: type[ModelAdapter]) -> None:
+    """Register a new adapter class.
 
     Args:
-        name:      Registered model name (e.g. "raft", "pwcnet").
-        overrides: Keyword args to override fields in AdapterConfig.
-                   Ignored for custom ModelAdapter classes.
+        name:          Lookup key (case-insensitive at retrieval time).
+        adapter_class: A :class:`ModelAdapter` **subclass** (not an instance).
+    """
+    ADAPTER_REGISTRY[name] = adapter_class
+
+
+def get_adapter(name: str) -> ModelAdapter:
+    """Look up an adapter by name and return a ready-to-use instance.
+
+    Args:
+        name: Registered model name (e.g. ``"raft"``, ``"pwcnet"``).
+
+    Returns:
+        A freshly constructed :class:`ModelAdapter` instance.
+
+    Raises:
+        KeyError:  If *name* is not registered.
+        TypeError: If the registry entry is not a ``ModelAdapter`` subclass.
     """
     name = name.lower()
     if name not in ADAPTER_REGISTRY:
@@ -80,16 +63,10 @@ def get_adapter(name: str, **overrides) -> ModelAdapter:
 
     entry = ADAPTER_REGISTRY[name]
 
-    if isinstance(entry, AdapterConfig):
-        if overrides:
-            config = replace(entry, **overrides)
-        else:
-            config = entry
-        return DefaultAdapter(config)
-    elif isinstance(entry, type) and issubclass(entry, ModelAdapter):
-        return entry(**overrides)
+    if isinstance(entry, type) and issubclass(entry, ModelAdapter):
+        return entry()
     else:
         raise TypeError(
-            f"Registry entry for '{name}' must be AdapterConfig or ModelAdapter subclass, "
+            f"Registry entry for '{name}' must be a ModelAdapter subclass, "
             f"got {type(entry)}"
         )

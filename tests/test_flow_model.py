@@ -23,8 +23,8 @@ from onnx import helper, TensorProto
 
 from core.flow_model import FlowModel
 from core.base_adapter import ModelAdapter
-from core.adapter_config import AdapterConfig
-from core.default_adapter import DefaultAdapter
+from core.adapters import RAFTAdapter
+from core import adapter_utils as utils
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -133,13 +133,7 @@ class PassthroughAdapter(ModelAdapter):
 class TestConstruction:
     def test_with_adapter_name(self, add_model_path):
         model = FlowModel(add_model_path, adapter="raft", device="cpu")
-        assert isinstance(model.adapter, DefaultAdapter)
-
-    def test_with_adapter_config(self, add_model_path):
-        cfg = AdapterConfig(normalization="unit", resizing_factor=16)
-        model = FlowModel(add_model_path, adapter=cfg, device="cpu")
-        assert isinstance(model.adapter, DefaultAdapter)
-        assert model.adapter.config.normalization == "unit"
+        assert isinstance(model.adapter, RAFTAdapter)
 
     def test_with_adapter_instance(self, identity_2ch_model_path):
         adapter = PassthroughAdapter()
@@ -154,7 +148,7 @@ class TestConstruction:
         model = FlowModel(add_model_path, adapter="raft", device="cpu")
         r = repr(model)
         assert "FlowModel" in r
-        assert "DefaultAdapter" in r
+        assert "RAFTAdapter" in r
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -191,56 +185,60 @@ class TestPredictCustomAdapter:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-class TestPredictDefaultAdapter:
-    def test_add_model_with_default_adapter(self, add_model_path):
-        """
-        Add model (image1 + image2) with DefaultAdapter.
-        Output has 3 channels but we configure output_layout to handle it.
-        """
-        # This model outputs (1, 3, H, W) - not real flow, but tests the pipeline.
-        # We just verify no crashes and correct spatial dims.
-        cfg = AdapterConfig(
-            input_names=["image1", "image2"],
-            normalization="none",
-            resizing_factor=8,
-            output_name="flow",
-            # The model outputs 3 channels, not 2.
-            # We'll test the pipeline doesn't crash - the CHW->HWC will produce (H,W,3).
-        )
-        model = FlowModel(add_model_path, adapter=cfg, device="cpu")
-        img = np.full((64, 64, 3), 10, dtype=np.uint8)
-        flow = model.predict(img, img)
-        # Output is (H, W, 3) because the model has 3 output channels
-        assert flow.shape[0] == 64
-        assert flow.shape[1] == 64
-
-    def test_padding_and_unpadding_roundtrip(self, add_model_path):
-        """Non-divisible input size -> padded -> inferred -> unpadded back."""
-        cfg = AdapterConfig(
-            input_names=["image1", "image2"],
-            normalization="none",
-            resizing_factor=32,
-            output_name="flow",
-        )
-        model = FlowModel(add_model_path, adapter=cfg, device="cpu")
-        img = np.zeros((100, 100, 3), dtype=np.uint8)  # not divisible by 32
-        flow = model.predict(img, img)
-        assert flow.shape[0] == 100
-        assert flow.shape[1] == 100
+class TestPredictWithUtilsAdapter:
+    """E2E tests using a custom adapter built from adapter_utils."""
 
     def test_unit_normalization_e2e(self, add_model_path):
         """Unit normalization: 255 -> 1.0, so Add gives 2.0."""
-        cfg = AdapterConfig(
-            input_names=["image1", "image2"],
-            normalization="unit",
-            resizing_factor=1,
-            output_name="flow",
-        )
-        model = FlowModel(add_model_path, adapter=cfg, device="cpu")
+
+        class UnitNormAdapter(ModelAdapter):
+            def preprocess(self, img1, img2):
+                img1 = utils.normalize_unit(img1)
+                img2 = utils.normalize_unit(img2)
+                img1 = utils.add_batch_dim(utils.hwc_to_chw(img1))
+                img2 = utils.add_batch_dim(utils.hwc_to_chw(img2))
+                return {"image1": img1, "image2": img2}
+
+            def postprocess(self, outputs):
+                flow = utils.select_output(outputs, "flow")
+                flow = utils.remove_batch_dim(flow)
+                return utils.chw_to_hwc(flow)
+
+        model = FlowModel(add_model_path, adapter=UnitNormAdapter(), device="cpu")
         img = np.full((8, 8, 3), 255, dtype=np.uint8)
         flow = model.predict(img, img)
         # 255/255 = 1.0, Add -> 2.0
         np.testing.assert_allclose(flow, 2.0, atol=1e-5)
+
+    def test_padding_roundtrip(self, add_model_path):
+        """Non-divisible input -> padded -> inferred -> cropped back."""
+
+        class PadAdapter(ModelAdapter):
+            def __init__(self):
+                self._h = 0
+                self._w = 0
+
+            def preprocess(self, img1, img2):
+                self._h, self._w = img1.shape[:2]
+                img1 = img1.astype(np.float32)
+                img2 = img2.astype(np.float32)
+                img1 = utils.pad_to_divisible(utils.hwc_to_chw(img1), 32)
+                img2 = utils.pad_to_divisible(utils.hwc_to_chw(img2), 32)
+                img1 = utils.add_batch_dim(img1)
+                img2 = utils.add_batch_dim(img2)
+                return {"image1": img1, "image2": img2}
+
+            def postprocess(self, outputs):
+                flow = utils.select_output(outputs, "flow")
+                flow = utils.remove_batch_dim(flow)
+                flow = utils.chw_to_hwc(flow)
+                return flow[: self._h, : self._w]
+
+        model = FlowModel(add_model_path, adapter=PadAdapter(), device="cpu")
+        img = np.zeros((100, 100, 3), dtype=np.uint8)
+        flow = model.predict(img, img)
+        assert flow.shape[0] == 100
+        assert flow.shape[1] == 100
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -112,7 +112,7 @@ def flow_to_image(flow_uv, clip_flow=None, convert_to_bgr=False):
     Expects a two dimensional flow image of shape.
 
     Args:
-        flow_uv (np.ndarray): Flow UV image of shape [H,W,2]
+        flow_uv (np.ndarray): Flow UV image of shape [H,W,2] (HWC) or [2,H,W] (CHW).
         clip_flow (float, optional): Clip maximum of flow values. Defaults to None.
         convert_to_bgr (bool, optional): Convert output image to BGR. Defaults to False.
 
@@ -120,7 +120,12 @@ def flow_to_image(flow_uv, clip_flow=None, convert_to_bgr=False):
         np.ndarray: Flow visualization image of shape [H,W,3]
     """
     assert flow_uv.ndim == 3, "input flow must have three dimensions"
-    assert flow_uv.shape[2] == 2, "input flow must have shape [H,W,2]"
+
+    # Auto-detect CHW format: shape (2, H, W) where first dim is 2
+    if flow_uv.shape[0] == 2 and flow_uv.shape[2] != 2:
+        flow_uv = np.transpose(flow_uv, (1, 2, 0))
+
+    assert flow_uv.shape[2] == 2, "input flow must have shape [H,W,2] or [2,H,W]"
     if clip_flow is not None:
         flow_uv = np.clip(flow_uv, 0, clip_flow)
     u = flow_uv[:, :, 0]

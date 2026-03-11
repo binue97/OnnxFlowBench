@@ -11,8 +11,6 @@ import numpy as np
 
 from core.onnx_engine import OnnxEngine
 from core.base_adapter import ModelAdapter
-from core.adapter_config import AdapterConfig
-from core.default_adapter import DefaultAdapter
 from core.registry import get_adapter
 
 
@@ -22,7 +20,7 @@ class FlowModel:
     def __init__(
         self,
         onnx_path: str,
-        adapter: str | AdapterConfig | ModelAdapter = "raft",
+        adapter: str | ModelAdapter = "raft",
         device: str = "cuda",
     ):
         """
@@ -30,7 +28,6 @@ class FlowModel:
             onnx_path: Path to the .onnx model file.
             adapter:   One of:
                        - str: registered adapter name (e.g. "flownets", "raft")
-                       - AdapterConfig: config for DefaultAdapter
                        - ModelAdapter: a ready-to-use adapter instance
             device:    "cuda" or "cpu".
         """
@@ -42,13 +39,11 @@ class FlowModel:
         """Convert the adapter argument into a ModelAdapter instance."""
         if isinstance(adapter, str):
             return get_adapter(adapter)
-        elif isinstance(adapter, AdapterConfig):
-            return DefaultAdapter(adapter)
         elif isinstance(adapter, ModelAdapter):
             return adapter
         else:
             raise TypeError(
-                f"adapter must be str, AdapterConfig, or ModelAdapter, "
+                f"adapter must be str or ModelAdapter, "
                 f"got {type(adapter).__name__}"
             )
 
@@ -70,6 +65,4 @@ class FlowModel:
 
     def __repr__(self) -> str:
         adapter_name = type(self.adapter).__name__
-        if isinstance(self.adapter, DefaultAdapter):
-            adapter_name += f"(normalization={self.adapter.config.normalization!r})"
         return f"FlowModel(\n  engine={self.engine!r},\n  adapter={adapter_name}\n)"
