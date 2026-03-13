@@ -74,7 +74,7 @@ def readPFM(file):
 
 def writeFlow(filename, uv, v=None):
     """Write optical flow to file.
-
+    Expects a numpy array with shape (H, W, 2) or two arrays (u and v) with shape (H, W).
     If v is None, uv is assumed to contain both u and v channels,
     stacked in depth.
     Original code by Deqing Sun, adapted from Daniel Scharstein.

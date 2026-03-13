@@ -215,15 +215,14 @@ class TestPredictWithUtilsAdapter:
 
         class PadAdapter(ModelAdapter):
             def __init__(self):
-                self._h = 0
-                self._w = 0
+                self.padder = utils.Padder(factor=32, mode="replicate", two_side_pad=False)
 
             def preprocess(self, img1, img2):
-                self._h, self._w = img1.shape[:2]
                 img1 = img1.astype(np.float32)
                 img2 = img2.astype(np.float32)
-                img1 = utils.pad_to_divisible(utils.hwc_to_chw(img1), 32)
-                img2 = utils.pad_to_divisible(utils.hwc_to_chw(img2), 32)
+                self.padder.reset()
+                img1 = self.padder.pad(utils.hwc_to_chw(img1))
+                img2 = self.padder.pad(utils.hwc_to_chw(img2))
                 img1 = utils.add_batch_dim(img1)
                 img2 = utils.add_batch_dim(img2)
                 return {"image1": img1, "image2": img2}
@@ -232,7 +231,7 @@ class TestPredictWithUtilsAdapter:
                 flow = utils.select_output(outputs, "flow")
                 flow = utils.remove_batch_dim(flow)
                 flow = utils.chw_to_hwc(flow)
-                return flow[: self._h, : self._w]
+                return self.padder.unpad(flow)
 
         model = FlowModel(add_model_path, adapter=PadAdapter(), device="cpu")
         img = np.zeros((100, 100, 3), dtype=np.uint8)

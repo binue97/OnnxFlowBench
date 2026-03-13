@@ -1,12 +1,12 @@
 """
 Adapter registry — maps model names to adapter classes.
 
-Built-in adapters: ``flownets``, ``pwcnet``, ``raft``.
+Built-in adapters: ``flownets``
 Register your own with :func:`register_adapter`.
 """
 
 from core.base_adapter import ModelAdapter
-from core.adapters import FlowNetSAdapter, PWCNetAdapter, RAFTAdapter
+from core.adapters import FlowNetSAdapter, RaftAdapter
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -15,8 +15,7 @@ from core.adapters import FlowNetSAdapter, PWCNetAdapter, RAFTAdapter
 
 ADAPTER_REGISTRY: dict[str, type[ModelAdapter]] = {
     "flownets": FlowNetSAdapter,
-    "pwcnet": PWCNetAdapter,
-    "raft": RAFTAdapter,
+    "raft": RaftAdapter,
 }
 
 

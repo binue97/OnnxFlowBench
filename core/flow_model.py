@@ -47,7 +47,11 @@ class FlowModel:
                 f"got {type(adapter).__name__}"
             )
 
-    def predict(self, img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
+    def predict(
+        self,
+        img1: np.ndarray,
+        img2: np.ndarray,
+    ) -> np.ndarray:
         """
         Run optical flow prediction on an image pair.
 
@@ -59,9 +63,25 @@ class FlowModel:
             flow: (H, W, 2) float32 in pixel units at original resolution.
         """
         feed = self.adapter.preprocess(img1, img2)
+
+        self._save_tensor("/home/bnu/workspace/FlowEval/resources/raft/", "inputs", feed)
+
         outputs = self.engine(feed)
+
+        self._save_tensor("/home/bnu/workspace/FlowEval/resources/raft/", "outputs", outputs)
+        
         flow = self.adapter.postprocess(outputs)
         return flow
+
+    @staticmethod
+    def _save_tensor(dir: str, tag: str, tensors: dict[str, np.ndarray]):
+        """Save each tensor in *tensors* as  <dir>/<tag>_<name>.npy."""
+        import os
+        os.makedirs(dir, exist_ok=True)
+        for name, arr in tensors.items():
+            path = os.path.join(dir, f"{tag}_{name}.npy")
+            np.save(path, arr)
+            print(f"[debug] saved {path}  shape={arr.shape}  dtype={arr.dtype}")
 
     def __repr__(self) -> str:
         adapter_name = type(self.adapter).__name__

@@ -121,38 +121,6 @@ class TestBatchDim:
         assert out.shape == (2, 4, 5)
 
 
-class TestPadToDivisible:
-    def test_pads_to_divisible(self):
-        img = np.ones((3, 30, 30))
-        out = utils.pad_to_divisible(img, 32)
-        assert out.shape[1] % 32 == 0 and out.shape[2] % 32 == 0
-        assert out.shape == (3, 32, 32)
-
-    def test_already_divisible_no_change(self):
-        img = np.ones((3, 64, 64))
-        out = utils.pad_to_divisible(img, 32)
-        assert out.shape == (3, 64, 64)
-
-    def test_factor_1_no_pad(self):
-        img = np.ones((3, 37, 53))
-        out = utils.pad_to_divisible(img, 1)
-        assert out.shape == (3, 37, 53)
-
-    def test_zero_mode(self):
-        img = np.full((3, 30, 30), 128.0)
-        out = utils.pad_to_divisible(img, 32, mode="zero")
-        assert out[0, 31, 0] == 0.0
-
-    def test_replicate_mode(self):
-        img = np.full((3, 30, 30), 128.0)
-        out = utils.pad_to_divisible(img, 32, mode="replicate")
-        assert out[0, 31, 0] == 128.0
-
-    def test_unknown_mode_raises(self):
-        with pytest.raises(ValueError, match="Unknown padding mode"):
-            utils.pad_to_divisible(np.ones((3, 10, 10)), 32, mode="weird")
-
-
 class TestInterpolateToDivisible:
     def test_resizes_to_divisible(self):
         img = np.ones((3, 100, 100))

@@ -3,31 +3,99 @@ Reusable pre/post-processing utilities for optical flow adapters.
 
 These functions are building blocks that any ModelAdapter subclass
 can compose to avoid reimplementing common logic.
-
-Example usage in a custom adapter:
-
-    from core.base_adapter import ModelAdapter
-    from core import adapter_utils as utils
-
-    class MyAdapter(ModelAdapter):
-        def preprocess(self, img1, img2):
-            self._orig_h, self._orig_w = img1.shape[:2]
-            img1 = utils.normalize_unit(img1)
-            img1 = utils.hwc_to_chw(img1)
-            img1 = utils.pad_to_divisible(img1, 32)
-            img1 = utils.add_batch_dim(img1)
-            ...
-
-        def postprocess(self, outputs):
-            flow = utils.select_output(outputs, 0)
-            flow = utils.remove_batch_dim(flow)
-            flow = utils.chw_to_hwc(flow)
-            flow = utils.resize_flow(flow, self._orig_h, self._orig_w)
-            return flow
 """
 
 import numpy as np
 import cv2
+
+
+# ── Padder ─────────────────────────────────────────────────────────────────────
+class Padder:
+    """Pad images so spatial dims are divisible by *factor*, then unpad outputs.
+
+    Remembers the padding applied during :meth:`pad` so that :meth:`unpad`
+    can restore the original spatial dimensions without any bookkeeping
+    on the caller's side.
+    """
+
+    def __init__(
+        self,
+        factor: int = 8,
+        mode: str = "replicate",
+        two_side_pad: bool = True,
+    ) -> None:
+        self.factor = factor
+        self.mode = mode
+        self.two_side_pad = two_side_pad
+        # (top, bottom, left, right) — set by the first call to pad()
+        self._pad: tuple[int, int, int, int] | None = None
+
+    def pad(self, img: np.ndarray) -> np.ndarray:
+        """Pad a (C, H, W) array so H and W are divisible by *factor*."""
+        _, h, w = img.shape
+
+        if self._pad is None:
+            self._pad = self._compute_pad(h, w)
+
+        top, bottom, left, right = self._pad
+        if top == 0 and bottom == 0 and left == 0 and right == 0:
+            return img
+
+        if self.mode == "zero":
+            return np.pad(
+                img,
+                ((0, 0), (top, bottom), (left, right)),
+                mode="constant",
+                constant_values=0,
+            )
+        elif self.mode == "replicate":
+            return np.pad(
+                img,
+                ((0, 0), (top, bottom), (left, right)),
+                mode="edge",
+            )
+        else:
+            raise ValueError(f"Unknown padding mode: {self.mode!r}")
+
+    def unpad(self, x: np.ndarray) -> np.ndarray:
+        """Remove the padding from the last two spatial dims of *x*."""
+        if self._pad is None:
+            raise RuntimeError("Padder.unpad() called before pad()")
+
+        top, bottom, left, right = self._pad
+        if top == 0 and bottom == 0 and left == 0 and right == 0:
+            return x
+        print(f"Removing padding: top={top}, bottom={bottom}, left={left}, right={right}")
+        h = x.shape[-2]
+        w = x.shape[-1]
+        return x[..., top : h - bottom, left : w - right]
+
+    def reset(self) -> None:
+        """Clear stored padding so the next :meth:`pad` recomputes it."""
+        self._pad = None
+
+    def _compute_pad(
+        self, h: int, w: int
+    ) -> tuple[int, int, int, int]:
+        """Return (top, bottom, left, right) padding."""
+        if self.factor <= 1:
+            return (0, 0, 0, 0)
+
+        new_h = int(np.ceil(h / self.factor) * self.factor)
+        new_w = int(np.ceil(w / self.factor) * self.factor)
+        pad_h = new_h - h
+        pad_w = new_w - w
+
+        if self.two_side_pad:
+            top = pad_h // 2
+            bottom = pad_h - top
+            left = pad_w // 2
+            right = pad_w - left
+        else:
+            top, bottom = 0, pad_h
+            left, right = 0, pad_w
+
+        return (top, bottom, left, right)
 
 
 # ── Normalization ─────────────────────────────────────────────────────────────
@@ -105,42 +173,6 @@ def remove_batch_dim(x: np.ndarray) -> np.ndarray:
 # ── Spatial resizing ─────────────────────────────────────────────────────────
 
 
-def pad_to_divisible(
-    img: np.ndarray, factor: int, mode: str = "replicate"
-) -> np.ndarray:
-    """Pad a (C, H, W) array so H and W are divisible by *factor*.
-
-    Args:
-        img:    (C, H, W) tensor.
-        factor: Divisibility factor (8, 16, 32, 64, …).
-        mode:   ``"zero"`` or ``"replicate"``.
-
-    Returns:
-        Padded (C, H', W') array.
-    """
-    if factor <= 1:
-        return img
-    _, h, w = img.shape
-    new_h = int(np.ceil(h / factor) * factor)
-    new_w = int(np.ceil(w / factor) * factor)
-    pad_h = new_h - h
-    pad_w = new_w - w
-    if pad_h == 0 and pad_w == 0:
-        return img
-
-    if mode == "zero":
-        return np.pad(
-            img,
-            ((0, 0), (0, pad_h), (0, pad_w)),
-            mode="constant",
-            constant_values=0,
-        )
-    elif mode == "replicate":
-        return np.pad(img, ((0, 0), (0, pad_h), (0, pad_w)), mode="edge")
-    else:
-        raise ValueError(f"Unknown padding mode: {mode!r}")
-
-
 def interpolate_to_divisible(img: np.ndarray, factor: int) -> np.ndarray:
     """Resize a (C, H, W) array via bilinear interpolation so H and W
     are divisible by *factor*.
@@ -167,9 +199,7 @@ def interpolate_to_divisible(img: np.ndarray, factor: int) -> np.ndarray:
 # ── Output selection ─────────────────────────────────────────────────────────
 
 
-def select_output(
-    outputs: dict[str, np.ndarray], key: str | int = 0
-) -> np.ndarray:
+def select_output(outputs: dict[str, np.ndarray], key: str | int = 0) -> np.ndarray:
     """Pick a tensor from the ONNX output dict by name (``str``) or index (``int``).
 
     Args:

@@ -9,7 +9,6 @@ License: MIT
 
 [ONNX export options]
 - Pretrained model: flownets_EPE1.951.pth
-- Input dimension: [1, 6, 436, 1024]
 - Constant folding: True
 - Opset version: 17
 - Dynamic axes

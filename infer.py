@@ -52,6 +52,8 @@ def save_results(
     """Save predicted flow in the requested formats."""
     os.makedirs(output_dir, exist_ok=True)
 
+    print(f"Flow shape: {flow_pred.shape}, dtype: {flow_pred.dtype}, range: [{flow_pred.min():.2f}, {flow_pred.max():.2f}]")
+
     if png:
         path = os.path.join(output_dir, f"{name}.png")
         flow_viz = flow_to_image(flow_pred)
