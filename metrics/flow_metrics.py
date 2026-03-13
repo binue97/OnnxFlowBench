@@ -71,7 +71,7 @@ def fl_all(
         EPE > epe_thresh  AND  EPE > rel_thresh * ||gt||
 
     Returns:
-        Outlier rate in [0, 1] (float). Returns 0.0 if no valid pixels.
+        Outlier percentage in [0, 100] (float). Returns 0.0 if no valid pixels.
     """
     _validate_inputs(pred, gt, valid)
     mask = valid > 0.5
@@ -80,7 +80,7 @@ def fl_all(
     err = _endpoint_error(pred, gt)
     gt_mag = np.sqrt(np.sum(gt**2, axis=-1))
     outlier = (err > epe_thresh) & (err > rel_thresh * gt_mag)
-    return float(np.mean(outlier[mask]))
+    return float(np.mean(outlier[mask])) * 100.0
 
 
 def n_pixel(
@@ -95,14 +95,14 @@ def n_pixel(
     Common thresholds: 1px (Spring), 3px, 5px.
 
     Returns:
-        Error rate in [0, 1] (float). Returns 0.0 if no valid pixels.
+        Error percentage in [0, 100] (float). Returns 0.0 if no valid pixels.
     """
     _validate_inputs(pred, gt, valid)
     mask = valid > 0.5
     if not mask.any():
         return 0.0
     err = _endpoint_error(pred, gt)
-    return float(np.mean(err[mask] > n))
+    return float(np.mean(err[mask] > n)) * 100.0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

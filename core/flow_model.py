@@ -51,6 +51,7 @@ class FlowModel:
         self,
         img1: np.ndarray,
         img2: np.ndarray,
+        debug_flag: bool = False
     ) -> np.ndarray:
         """
         Run optical flow prediction on an image pair.
@@ -64,11 +65,13 @@ class FlowModel:
         """
         feed = self.adapter.preprocess(img1, img2)
 
-        self._save_tensor("/home/bnu/workspace/FlowEval/resources/raft/", "inputs", feed)
+        if debug_flag:
+            self._save_tensor("resources/raft/", "feed", feed)
 
         outputs = self.engine(feed)
 
-        self._save_tensor("/home/bnu/workspace/FlowEval/resources/raft/", "outputs", outputs)
+        if debug_flag:
+            self._save_tensor("resources/raft/", "outputs", outputs)
         
         flow = self.adapter.postprocess(outputs)
         return flow

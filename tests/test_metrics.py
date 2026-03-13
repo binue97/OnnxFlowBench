@@ -113,7 +113,7 @@ class TestFlAll:
         """Every pixel has EPE=10 with gt_mag=0 -> all outliers."""
         pred = _constant_flow(dx=10.0, dy=0.0)
         gt = _constant_flow(dx=0.0, dy=0.0)
-        assert fl_all(pred, gt, _all_valid()) == pytest.approx(1.0)
+        assert fl_all(pred, gt, _all_valid()) == pytest.approx(100.0)
 
     def test_below_epe_threshold(self):
         """EPE=2, epe_threshold=3"""
@@ -151,7 +151,7 @@ class TestFlAll:
         gt[1, 1] = [0.0, 0.0]
 
         valid = _all_valid(H, W)
-        assert fl_all(pred, gt, valid) == pytest.approx(0.5)
+        assert fl_all(pred, gt, valid) == pytest.approx(50.0)
 
     def test_all_invalid(self):
         pred = _constant_flow(dx=100.0)
@@ -173,7 +173,7 @@ class TestNPixel:
         """EPE=5 everywhere, threshold=1 -> 100% above."""
         pred = _constant_flow(dx=5.0, dy=0.0)
         gt = _constant_flow(dx=0.0, dy=0.0)
-        assert n_pixel(pred, gt, _all_valid(), n=1.0) == pytest.approx(1.0)
+        assert n_pixel(pred, gt, _all_valid(), n=1.0) == pytest.approx(100.0)
 
     def test_all_below_threshold(self):
         """EPE=0.5 everywhere, threshold=1 -> 0% above."""
@@ -199,9 +199,9 @@ class TestNPixel:
         valid = _all_valid(H, W)
 
         # 1px: 3 out of 4 above (1.5, 2.5, 4.0)
-        assert n_pixel(pred, gt, valid, n=1.0) == pytest.approx(0.75)
+        assert n_pixel(pred, gt, valid, n=1.0) == pytest.approx(75.0)
         # 3px: 1 out of 4 above (4.0)
-        assert n_pixel(pred, gt, valid, n=3.0) == pytest.approx(0.25)
+        assert n_pixel(pred, gt, valid, n=3.0) == pytest.approx(25.0)
         # 5px: 0 out of 4
         assert n_pixel(pred, gt, valid, n=5.0) == pytest.approx(0.0)
 

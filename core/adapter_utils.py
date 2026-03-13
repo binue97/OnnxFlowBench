@@ -65,7 +65,6 @@ class Padder:
         top, bottom, left, right = self._pad
         if top == 0 and bottom == 0 and left == 0 and right == 0:
             return x
-        print(f"Removing padding: top={top}, bottom={bottom}, left={left}, right={right}")
         h = x.shape[-2]
         w = x.shape[-1]
         return x[..., top : h - bottom, left : w - right]
