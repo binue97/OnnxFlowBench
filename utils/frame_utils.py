@@ -25,8 +25,8 @@ def readFlow(fn):
             print("Magic number incorrect. Invalid .flo file")
             return None
         else:
-            w = np.fromfile(f, np.int32, count=1)
-            h = np.fromfile(f, np.int32, count=1)
+            w = np.fromfile(f, np.int32, count=1)[0]
+            h = np.fromfile(f, np.int32, count=1)[0]
             # print 'Reading %d x %d flo file\n' % (w, h)
             data = np.fromfile(f, np.float32, count=2 * int(w) * int(h))
             # Reshape data into 3D array (columns, rows, bands)

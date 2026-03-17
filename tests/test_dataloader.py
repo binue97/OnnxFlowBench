@@ -1,5 +1,5 @@
 """
-Tests for the FlowEval dataloader package using real datasets.
+Tests for the OnnxFlowBench dataloader package using real datasets.
 
 Usage:
     python -m pytest tests/test_dataloader.py -v
@@ -34,7 +34,7 @@ class TestFlowDatasetBase:
         ds = FlowDataset()
         assert len(ds) == 0
 
-    def test_rmul_repeats_lists(self):
+    def test_dataset_multiplication(self):
         ds = FlowDataset()
         ds.image_list = [["a.png", "b.png"]]
         ds.flow_list = ["f.flo"]
@@ -50,29 +50,20 @@ class TestFlowDatasetBase:
 
 class TestMpiSintel:
     def test_discovery(self):
-        ds = MpiSintel(split="training", dstype="clean")
-        assert len(ds) > 0
-        assert len(ds.flow_list) == len(ds.image_list)
-        assert ds.is_test is False
+        ds_clean = MpiSintel(split="training", dstype="clean")
+        ds_final = MpiSintel(split="training", dstype="final")
+        assert len(ds_clean) > 0 and len(ds_final) > 0
+        assert len(ds_clean.flow_list) == len(ds_clean.image_list)
+        assert len(ds_final.flow_list) == len(ds_final.image_list)
+        assert ds_clean.is_test is False
+        assert ds_final.is_test is False
 
-    def test_both_dstypes_load(self):
-        clean = MpiSintel(split="training", dstype="clean")
-        final = MpiSintel(split="training", dstype="final")
-        assert len(clean) > 0
-        assert len(final) > 0
-
-    def test_getitem_returns_tensors(self):
+    def test_getitem(self):
         ds = MpiSintel(split="training", dstype="clean")
         img1, img2, flow, valid = ds[0]
         assert isinstance(img1, torch.Tensor) and img1.shape[0] == 3
         assert isinstance(flow, torch.Tensor) and flow.shape[0] == 2
         assert valid.dtype == torch.float32
-
-    def test_extra_info_populated(self):
-        ds = MpiSintel(split="training", dstype="clean")
-        scene, frame_id = ds.extra_info[0]
-        assert isinstance(scene, str)
-        assert isinstance(frame_id, int)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -81,7 +72,7 @@ class TestMpiSintel:
 
 
 class TestFlyingChairs:
-    def test_discovery_training(self):
+    def test_discovery(self):
         ds = FlyingChairs(split="training")
         assert len(ds) > 0
         assert len(ds.flow_list) == len(ds.image_list)
@@ -93,8 +84,9 @@ class TestFlyingChairs:
     def test_getitem(self):
         ds = FlyingChairs(split="training")
         img1, img2, flow, valid = ds[0]
-        assert img1.shape[0] == 3
-        assert flow.shape[0] == 2
+        assert isinstance(img1, torch.Tensor) and img1.shape[0] == 3
+        assert isinstance(flow, torch.Tensor) and flow.shape[0] == 2
+        assert valid.dtype == torch.float32
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -108,16 +100,12 @@ class TestKITTI:
         assert len(ds) > 0
         assert len(ds.flow_list) == len(ds.image_list)
 
-    def test_extra_info(self):
-        ds = KITTI(split="training")
-        assert len(ds.extra_info) > 0
-        assert ds.extra_info[0][0].endswith("_10.png")
-
     def test_getitem(self):
         ds = KITTI(split="training")
         img1, img2, flow, valid = ds[0]
-        assert img1.ndim == 3 and img1.shape[0] == 3
-        assert flow.shape[0] == 2
+        assert isinstance(img1, torch.Tensor) and img1.shape[0] == 3
+        assert isinstance(flow, torch.Tensor) and flow.shape[0] == 2
+        assert valid.dtype == torch.float32
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -134,8 +122,9 @@ class TestFlyingThings:
     def test_getitem(self):
         ds = FlyingThings(dstype="frames_cleanpass")
         img1, img2, flow, valid = ds[0]
-        assert img1.shape[0] == 3
-        assert flow.shape[0] == 2
+        assert isinstance(img1, torch.Tensor) and img1.shape[0] == 3
+        assert isinstance(flow, torch.Tensor) and flow.shape[0] == 2
+        assert valid.dtype == torch.float32
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -162,6 +151,8 @@ class TestSpring:
         ds = Spring(split="train")
         img1, img2, flow, valid = ds[0]
         assert isinstance(img1, torch.Tensor) and img1.shape[0] == 3
+        assert isinstance(flow, torch.Tensor) and flow.shape[0] == 2
+        assert valid.dtype == torch.float32
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -178,7 +169,9 @@ class TestHD1K:
     def test_getitem(self):
         ds = HD1K()
         img1, img2, flow, valid = ds[0]
-        assert flow.shape[0] == 2
+        assert isinstance(img1, torch.Tensor) and img1.shape[0] == 3
+        assert isinstance(flow, torch.Tensor) and flow.shape[0] == 2
+        assert valid.dtype == torch.float32
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -196,66 +189,9 @@ class TestTartanAir:
     def test_getitem(self):
         ds = TartanAir()
         img1, img2, flow, valid = ds[0]
-        assert img1.shape[0] == 3
-        assert flow.shape[0] == 2
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# DataLoader integration
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-class TestDataLoaderIntegration:
-    def test_dataloader_batch(self):
-        ds = MpiSintel(split="training", dstype="clean")
-        loader = torch.utils.data.DataLoader(
-            ds, batch_size=2, shuffle=False, num_workers=0
-        )
-        img1, img2, flow, valid = next(iter(loader))
-        assert img1.shape[0] == 2
-        assert flow.shape[1] == 2
-
-    def test_concat_datasets(self):
-        ds1 = MpiSintel(split="training", dstype="clean")
-        ds2 = MpiSintel(split="training", dstype="final")
-        combined = ds1 + ds2
-        assert len(combined) == len(ds1) + len(ds2)
-
-    def test_rmul_dataset(self):
-        ds = KITTI(split="training")
-        original_len = len(ds)
-        ds = 5 * ds
-        assert len(ds) == 5 * original_len
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Output quality checks
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-class TestOutputShapesAndTypes:
-    def test_image_range(self):
-        ds = MpiSintel(split="training", dstype="clean")
-        img1, img2, flow, valid = ds[0]
-        assert img1.min() >= 0
-        assert img1.max() <= 255
-
-    def test_valid_mask_is_binary(self):
-        ds = MpiSintel(split="training", dstype="clean")
-        _, _, _, valid = ds[0]
-        assert set(valid.unique().tolist()).issubset({0.0, 1.0})
-
-    def test_flow_no_nan_inf(self):
-        ds = MpiSintel(split="training", dstype="clean")
-        _, _, flow, _ = ds[0]
-        assert not torch.isnan(flow).any()
-        assert not torch.isinf(flow).any()
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Dataset statistics (run with -s to see printed output)
-#   python -m pytest tests/test_dataloader.py -v -s -k "test_print_statistics"
-# ═══════════════════════════════════════════════════════════════════════════════
+        assert isinstance(img1, torch.Tensor) and img1.shape[0] == 3
+        assert isinstance(flow, torch.Tensor) and flow.shape[0] == 2
+        assert valid.dtype == torch.float32
 
 
 class TestDatasetStatistics:

@@ -1,8 +1,6 @@
-# FlowEval Dataloader Tests
+# OnnxFlowBench Dataloader Tests
 
 ## Prerequisites
-
-- Python 3.8+
 - `pytest` installed (`pip install pytest`)
 - Real datasets placed under `datasets/` at the project root:
 

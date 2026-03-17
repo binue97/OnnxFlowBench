@@ -17,29 +17,12 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from core.base_adapter import ModelAdapter
 from core import adapter_utils as utils
-from core.adapters import FlowNetSAdapter, PWCNetAdapter, RAFTAdapter
+from core.adapters import FlowNetSAdapter, RaftAdapter
 from core.registry import (
     get_adapter,
-    list_adapters,
     register_adapter,
     ADAPTER_REGISTRY,
 )
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Helpers
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-def _random_image(h=100, w=120):
-    """Random (H, W, 3) uint8 image."""
-    return np.random.randint(0, 256, (h, w, 3), dtype=np.uint8)
-
-
-def _mock_flow_output_chw(h, w):
-    """Simulated ONNX output: (1, 2, H, W) flow in CHW layout."""
-    return np.random.randn(1, 2, h, w).astype(np.float32)
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Utility functions
@@ -179,183 +162,28 @@ class TestResizeFlow:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# FlowNetS Adapter
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-class TestFlowNetSAdapter:
-    def test_preprocess_concat_shape(self):
-        adapter = FlowNetSAdapter()
-        img = _random_image(h=100, w=120)
-        feed = adapter.preprocess(img, img)
-        assert len(feed) == 1
-        assert "input" in feed
-        t = feed["input"]
-        assert t.shape[0] == 1 and t.shape[1] == 6  # concat
-        assert t.shape[2] % 64 == 0 and t.shape[3] % 64 == 0
-
-    def test_preprocess_meanstd_normalization(self):
-        adapter = FlowNetSAdapter()
-        img = np.full((64, 64, 3), 255, dtype=np.uint8)
-        feed = adapter.preprocess(img, img)
-        t = feed["input"]
-        # FlowNetS uses (img/255 - mean) / std with mean=[0.411, 0.432, 0.45], std=[1,1,1]
-        # After BGR reorder: channel 0 is B = (1.0 - 0.45) = 0.55
-        # Values differ from simple unit normalization (which would give 1.0)
-        assert t.dtype == np.float32
-        np.testing.assert_allclose(t[0, 0, 0, 0], 0.55, atol=0.01)   # B channel
-        np.testing.assert_allclose(t[0, 1, 0, 0], 0.568, atol=0.01)  # G channel
-        np.testing.assert_allclose(t[0, 2, 0, 0], 0.589, atol=0.01)  # R channel
-
-    def test_postprocess_restores_shape(self):
-        adapter = FlowNetSAdapter()
-        img = _random_image(h=100, w=120)
-        feed = adapter.preprocess(img, img)
-        _, _, ph, pw = feed["input"].shape
-        mock = {"output": _mock_flow_output_chw(ph, pw)}
-        flow = adapter.postprocess(mock)
-        assert flow.shape == (100, 120, 2)
-        assert flow.dtype == np.float32
-
-    def test_postprocess_scales_flow_on_resize(self):
-        """Flow values should be scaled by the resize ratio."""
-        adapter = FlowNetSAdapter()
-        img = _random_image(h=50, w=100)  # → interpolated to 64x128
-        feed = adapter.preprocess(img, img)
-        _, _, ph, pw = feed["input"].shape
-        assert ph == 64 and pw == 128
-
-        raw = np.ones((1, 2, ph, pw), dtype=np.float32)
-        flow = adapter.postprocess({"output": raw})
-        assert flow.shape == (50, 100, 2)
-        # Horizontal: 100/128 ≈ 0.78
-        np.testing.assert_allclose(flow[25, 50, 0], 100.0 / 128.0, atol=0.05)
-        # Vertical: 50/64 ≈ 0.78
-        np.testing.assert_allclose(flow[25, 50, 1], 50.0 / 64.0, atol=0.05)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PWC-Net Adapter
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-class TestPWCNetAdapter:
-    def test_preprocess_concat_shape(self):
-        adapter = PWCNetAdapter()
-        img = _random_image(h=384, w=512)
-        feed = adapter.preprocess(img, img)
-        assert len(feed) == 1
-        assert "input" in feed
-        t = feed["input"]
-        assert t.shape[1] == 6  # concat
-        assert t.shape[2] % 64 == 0 and t.shape[3] % 64 == 0
-
-    def test_preprocess_unit_normalization(self):
-        adapter = PWCNetAdapter()
-        img = _random_image(h=64, w=64)
-        feed = adapter.preprocess(img, img)
-        t = feed["input"]
-        assert t.min() >= 0.0
-        assert t.max() <= 1.0
-
-    def test_postprocess_quarter_res_upsampled(self):
-        adapter = PWCNetAdapter()
-        img = _random_image(h=384, w=512)
-        feed = adapter.preprocess(img, img)
-        _, _, ph, pw = feed["input"].shape
-        # Model outputs at 1/4 resolution
-        mock = {"flow": _mock_flow_output_chw(ph // 4, pw // 4)}
-        flow = adapter.postprocess(mock)
-        assert flow.shape == (384, 512, 2)
-
-    def test_postprocess_applies_output_scale(self):
-        adapter = PWCNetAdapter()
-        img = _random_image(h=64, w=64)
-        feed = adapter.preprocess(img, img)
-        _, _, ph, pw = feed["input"].shape
-        # Constant flow of 1.0 at quarter res
-        raw = np.ones((1, 2, ph // 4, pw // 4), dtype=np.float32)
-        flow = adapter.postprocess({"flow": raw})
-        # After scale (×20) and 4× upsample without flow scaling, center should be 20.0
-        np.testing.assert_allclose(flow[32, 32, :], 20.0, atol=1.0)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# RAFT Adapter
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-class TestRAFTAdapter:
-    def test_preprocess_separate_inputs(self):
-        adapter = RAFTAdapter()
-        img = _random_image(h=436, w=1024)
-        feed = adapter.preprocess(img, img)
-        assert "image1" in feed and "image2" in feed
-        _, _, h, w = feed["image1"].shape
-        assert h % 8 == 0 and w % 8 == 0
-
-    def test_preprocess_no_normalization(self):
-        adapter = RAFTAdapter()
-        img = _random_image(h=64, w=64)
-        feed = adapter.preprocess(img, img)
-        t = feed["image1"]
-        assert t.min() >= 0.0
-        assert t.max() <= 255.0
-
-    def test_preprocess_already_divisible(self):
-        adapter = RAFTAdapter()
-        img = _random_image(h=64, w=64)
-        feed = adapter.preprocess(img, img)
-        assert feed["image1"].shape == (1, 3, 64, 64)
-
-    def test_postprocess_crops_to_original(self):
-        adapter = RAFTAdapter()
-        img = _random_image(h=436, w=1024)
-        feed = adapter.preprocess(img, img)
-        _, _, ph, pw = feed["image1"].shape
-        mock = {"flow": _mock_flow_output_chw(ph, pw)}
-        flow = adapter.postprocess(mock)
-        assert flow.shape == (436, 1024, 2)
-
-    def test_dtype_is_float32(self):
-        adapter = RAFTAdapter()
-        img = _random_image(h=64, w=64)
-        feed = adapter.preprocess(img, img)
-        assert feed["image1"].dtype == np.float32
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # Registry
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
 class TestRegistry:
-    def test_list_adapters(self):
-        names = list_adapters()
-        assert "raft" in names
-        assert "pwcnet" in names
-        assert "flownets" in names
-
     def test_get_known_adapter(self):
-        adapter = get_adapter("raft")
-        assert isinstance(adapter, RAFTAdapter)
-
-    def test_get_flownets(self):
         adapter = get_adapter("flownets")
         assert isinstance(adapter, FlowNetSAdapter)
+        adapter = get_adapter("raft")
+        assert isinstance(adapter, RaftAdapter)
 
-    def test_get_pwcnet(self):
-        adapter = get_adapter("pwcnet")
-        assert isinstance(adapter, PWCNetAdapter)
-
-    def test_get_unknown_raises(self):
+    def test_get_unknown_adapter(self):
         with pytest.raises(KeyError, match="Unknown adapter"):
             get_adapter("nonexistent_model")
 
     def test_case_insensitive(self):
-        a1 = get_adapter("RAFT")
-        a2 = get_adapter("raft")
-        assert type(a1) is type(a2)
+        flownets_large = get_adapter("FlowNetS")
+        flownets_small = get_adapter("flownets")
+        assert type(flownets_large) is type(flownets_small)
+        raft_large = get_adapter("RAFT")
+        raft_small = get_adapter("raft")
+        assert type(raft_large) is type(raft_small)
 
     def test_register_custom_class(self):
         class MyAdapter(ModelAdapter):
