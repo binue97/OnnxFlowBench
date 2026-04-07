@@ -16,7 +16,6 @@ class FlowNetSAdapter(ModelAdapter):
     DIVFLOW = 20.0
 
     def preprocess(self, img1: np.ndarray, img2: np.ndarray) -> dict[str, np.ndarray]:
-
         img1 = utils.normalize_meanstd(img1, self.MEAN, self.STD)
         img2 = utils.normalize_meanstd(img2, self.MEAN, self.STD)
 
