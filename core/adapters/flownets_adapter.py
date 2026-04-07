@@ -8,15 +8,16 @@ import numpy as np
 
 from core.base_adapter import ModelAdapter
 from core import adapter_utils as utils
+from core.registry import register
 
 
+@register("flownets")
 class FlowNetSAdapter(ModelAdapter):
     MEAN = [0.411, 0.432, 0.45]
     STD = [1.0, 1.0, 1.0]
     DIVFLOW = 20.0
 
     def preprocess(self, img1: np.ndarray, img2: np.ndarray) -> dict[str, np.ndarray]:
-
         img1 = utils.normalize_meanstd(img1, self.MEAN, self.STD)
         img2 = utils.normalize_meanstd(img2, self.MEAN, self.STD)
 

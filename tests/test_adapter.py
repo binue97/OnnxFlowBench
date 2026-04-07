@@ -17,7 +17,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from core.base_adapter import ModelAdapter
 from core import adapter_utils as utils
-from core.adapters import FlowNetSAdapter, RaftAdapter
+from core.adapters import *
 from core.registry import (
     get_adapter,
     register_adapter,
@@ -172,6 +172,8 @@ class TestRegistry:
         assert isinstance(adapter, FlowNetSAdapter)
         adapter = get_adapter("raft")
         assert isinstance(adapter, RaftAdapter)
+        adapter = get_adapter("ofnet")
+        assert isinstance(adapter, OFNetAdapter)
 
     def test_get_unknown_adapter(self):
         with pytest.raises(KeyError, match="Unknown adapter"):
@@ -184,6 +186,9 @@ class TestRegistry:
         raft_large = get_adapter("RAFT")
         raft_small = get_adapter("raft")
         assert type(raft_large) is type(raft_small)
+        ofnet_large = get_adapter("OFNet")
+        ofnet_small = get_adapter("ofnet")
+        assert type(ofnet_large) is type(ofnet_small)
 
     def test_register_custom_class(self):
         class MyAdapter(ModelAdapter):

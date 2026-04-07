@@ -1,22 +1,25 @@
 """
 Adapter registry — maps model names to adapter classes.
 
-Built-in adapters: ``flownets``
-Register your own with :func:`register_adapter`.
+Register adapters with the ``@register("name")`` decorator.
 """
 
 from core.base_adapter import ModelAdapter
-from core.adapters import FlowNetSAdapter, RaftAdapter
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Built-in adapters for well-known models
+# Registry
 # ═══════════════════════════════════════════════════════════════════════════════
 
-ADAPTER_REGISTRY: dict[str, type[ModelAdapter]] = {
-    "flownets": FlowNetSAdapter,
-    "raft": RaftAdapter,
-}
+ADAPTER_REGISTRY: dict[str, type[ModelAdapter]] = {}
+
+
+def register(name: str):
+    """Class decorator that registers an adapter under *name*."""
+    def decorator(cls):
+        ADAPTER_REGISTRY[name] = cls
+        return cls
+    return decorator
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

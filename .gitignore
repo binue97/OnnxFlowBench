@@ -53,3 +53,8 @@ logs/
 # Datasets
 datasets/
 datasets
+resources/test_sequences/
+
+# Output
+output/
+results/
