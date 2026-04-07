@@ -9,8 +9,10 @@ import numpy as np
 
 from core.base_adapter import ModelAdapter
 from core import adapter_utils as utils
+from core.registry import register
 
 
+@register("mymodel")
 class MyModelAdapter(ModelAdapter):
     def preprocess(self, img1: np.ndarray, img2: np.ndarray) -> dict[str, np.ndarray]:
         # Transform (H,W,3) uint8 images into ONNX input feed
@@ -33,18 +35,7 @@ In `core/adapters/__init__.py`, add:
 from core.adapters.mymodel_adapter import MyModelAdapter
 ```
 
-## 3. Register it in the registry
-
-In `core/registry.py`, add your class to `ADAPTER_REGISTRY`:
-
-```python
-ADAPTER_REGISTRY: dict[str, type[ModelAdapter]] = {
-    ...
-    "mymodel": MyModelAdapter,
-}
-```
-
-and add it to the import at the top of that file.
+The `@register` decorator auto-registers the adapter when the class is imported — no need to touch `registry.py`.
 
 ## Done
 

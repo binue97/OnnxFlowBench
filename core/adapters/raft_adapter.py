@@ -8,8 +8,10 @@ import numpy as np
 
 from core.base_adapter import ModelAdapter
 from core import adapter_utils as utils
+from core.registry import register
 
 
+@register("raft")
 class RaftAdapter(ModelAdapter):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
