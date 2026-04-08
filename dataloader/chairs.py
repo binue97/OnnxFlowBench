@@ -5,10 +5,12 @@ import os.path as osp
 
 from utils import frame_utils
 from dataloader.template import FlowDataset
+from config import get_dataset_root
 
 
 class FlyingChairs(FlowDataset):
-    def __init__(self, split="training", root="datasets/FlyingChairs/"):
+    def __init__(self, split="training", root=None):
+        root = root or get_dataset_root("chairs", "datasets/FlyingChairs/")
         super(FlyingChairs, self).__init__()
 
         images = sorted(glob(osp.join(root, "FlyingChairs_release/data", "*.ppm")))

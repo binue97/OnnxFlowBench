@@ -20,7 +20,21 @@ class ModelAdapter(ABC):
 
     Subclass this for models whose pre/post processing cannot
     be expressed via AdapterConfig + DefaultAdapter.
+
+    Standalone adapters (e.g. OpenCV DIS) that handle prediction
+    without an ONNX engine should override :meth:`predict` instead
+    of preprocess/postprocess.
     """
+
+    def predict(self, img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
+        """Run full prediction without an external engine.
+
+        Only standalone adapters need to override this.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support standalone prediction; "
+            f"use via FlowModel"
+        )
 
     @abstractmethod
     def preprocess(self, img1: np.ndarray, img2: np.ndarray) -> dict[str, np.ndarray]:

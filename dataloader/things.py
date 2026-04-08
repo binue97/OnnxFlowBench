@@ -5,10 +5,12 @@ import os.path as osp
 
 from utils import frame_utils
 from dataloader.template import FlowDataset
+from config import get_dataset_root
 
 
 class FlyingThings(FlowDataset):
-    def __init__(self, root="datasets/FlyingThings", dstype="frames_cleanpass"):
+    def __init__(self, root=None, dstype="frames_cleanpass"):
+        root = root or get_dataset_root("things", "datasets/FlyingThings")
         super(FlyingThings, self).__init__()
         for cam in ["left"]:
             for direction in ["into_future", "into_past"]:

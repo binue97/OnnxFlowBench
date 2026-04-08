@@ -1,8 +1,8 @@
 """Visualize feature tracking over image sequences without ground truth.
 
 Usage:
-    # Quick test with built-in DIS optical flow (no ONNX model needed)
-    python evaluate_viz.py --dis ultrafast --input resources/test_sequences --output results/dis
+    # Quick test with DIS optical flow (no ONNX model needed)
+    python evaluate_viz.py --adapter dis --input resources/test_sequences --output results/dis
 
     # Run with an ONNX model
     python evaluate_viz.py --model resources/models/ofnet_v1.onnx --adapter ofnet --input resources/test_sequences --output results/ofnet
@@ -318,11 +318,35 @@ def initialize_points(
 	point_count: int,
 	fast_threshold: int,
 ) -> np.ndarray:
-	"""Seed points on the first frame and convert them to ``(x, y)`` order."""
-	from misc.visualize_flow_vectors import select_points
+	"""Seed points on the first frame and return them in ``(x, y)`` order."""
+	import cv2
 
-	points_yx = select_points(frame, mode=point_mode, n=point_count, fast_threshold=fast_threshold)
-	return points_yx[:, ::-1].astype(np.float32)
+	height, width = frame.shape[:2]
+
+	if point_mode == "fast":
+		gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+		detector = cv2.FastFeatureDetector_create(threshold=fast_threshold)
+		keypoints = detector.detect(gray)
+		if not keypoints:
+			raise RuntimeError("FAST detected zero keypoints; try lowering --fast-threshold")
+		keypoints = sorted(keypoints, key=lambda kp: kp.response, reverse=True)
+		points = np.array([kp.pt for kp in keypoints[:point_count]], dtype=np.float32)
+	elif point_mode == "hom":
+		aspect = width / height
+		rows = max(1, int(np.sqrt(point_count / aspect)))
+		cols = max(1, int(point_count / rows))
+		ys = np.linspace(0, height - 1, rows + 2)[1:-1]
+		xs = np.linspace(0, width - 1, cols + 2)[1:-1]
+		yy, xx = np.meshgrid(ys, xs, indexing="ij")
+		pts_yx = np.stack([yy.ravel(), xx.ravel()], axis=1).astype(np.float32)
+		if len(pts_yx) > point_count:
+			idx = np.random.default_rng(42).choice(len(pts_yx), point_count, replace=False)
+			pts_yx = pts_yx[idx]
+		points = pts_yx[:, ::-1]  # (y, x) -> (x, y)
+	else:
+		raise ValueError(f"Unknown point_mode: {point_mode!r}")
+
+	return points
 
 
 def process_sequence(
@@ -388,26 +412,7 @@ def process_sequence(
 	)
 
 
-class DISFlowModel:
-	"""OpenCV DIS optical flow wrapper with the same .predict() interface."""
 
-	def __init__(self, preset: str = "medium") -> None:
-		import cv2
-
-		presets = {
-			"ultrafast": cv2.DISOpticalFlow_PRESET_ULTRAFAST,
-			"fast": cv2.DISOpticalFlow_PRESET_FAST,
-			"medium": cv2.DISOpticalFlow_PRESET_MEDIUM,
-		}
-		self._dis = cv2.DISOpticalFlow_create(presets.get(preset, presets["medium"]))
-
-	def predict(self, img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
-		import cv2
-
-		gray1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
-		gray2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
-		flow = self._dis.calc(gray1, gray2, None)
-		return flow
 
 
 def default_sequence_root() -> Path:
@@ -443,14 +448,7 @@ def build_argparser() -> argparse.ArgumentParser:
 		help=f"Adapter name ({', '.join(list_adapters())})",
 	)
 	parser.add_argument("--device", default="cuda", choices=["cuda", "cpu"])
-	parser.add_argument(
-		"--dis",
-		nargs="?",
-		const="ultrafast",
-		default=None,
-		choices=["ultrafast", "fast", "medium"],
-		help="Use OpenCV DIS optical flow instead of ONNX model (for debugging)",
-	)
+
 	parser.add_argument(
 		"--input",
 		default=str(default_sequence_root()),
@@ -498,14 +496,14 @@ def run_cli(args: argparse.Namespace) -> list[ProcessedSequenceSummary]:
 	"""Execute the evaluator from parsed CLI arguments."""
 	sequences = _select_sequences(discover_sequences(args.input), args.sequence)
 
-	if args.dis:
-		print(f"Using OpenCV DIS optical flow (preset: {args.dis})")
-		model = DISFlowModel(preset=args.dis)
+	from core.registry import get_adapter
+
+	adapter = get_adapter(args.adapter)
+	if args.model is None:
+		model = adapter
 	else:
-		if args.model is None:
-			raise SystemExit("error: --model is required when not using --dis")
 		from core.flow_model import FlowModel
-		model = FlowModel(args.model, adapter=args.adapter, device=args.device)
+		model = FlowModel(args.model, adapter=adapter, device=args.device)
 
 	summaries: list[ProcessedSequenceSummary] = []
 	for sequence in sequences:
@@ -530,9 +528,9 @@ def run_cli(args: argparse.Namespace) -> list[ProcessedSequenceSummary]:
 		print(f"  Output: {summary.output_path}")
 
 	run_meta = RunMeta(
-		model=args.model or "dis",
-		adapter=args.adapter if not args.dis else f"dis:{args.dis}",
-		device=args.device if not args.dis else "cpu",
+		model=args.model or args.adapter,
+		adapter=args.adapter,
+		device=args.device if args.model else "cpu",
 		timestamp=datetime.now().strftime("%Y-%m-%d, %H:%M:%S"),
 		point_mode=args.point_mode,
 		point_count=args.point_count,

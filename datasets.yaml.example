@@ -1,0 +1,12 @@
+# Dataset root paths.
+# Copy this file to datasets.yaml and edit the paths to match your setup.
+# Any key omitted here will fall back to its hardcoded default (datasets/<Name>).
+
+datasets:
+  chairs:    datasets/FlyingChairs
+  things:    datasets/FlyingThings
+  sintel:    datasets/Sintel
+  kitti:     datasets/KITTI_2015
+  hd1k:      datasets/HD1K
+  tartanair: datasets/TartanAir
+  spring:    datasets/Spring

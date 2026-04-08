@@ -6,10 +6,12 @@ from glob import glob
 
 from utils import frame_utils
 from dataloader.template import FlowDataset
+from config import get_dataset_root
 
 
 class MpiSintel(FlowDataset):
-    def __init__(self, split="training", root="datasets/Sintel", dstype="clean"):
+    def __init__(self, split="training", root=None, dstype="clean"):
+        root = root or get_dataset_root("sintel", "datasets/Sintel")
         super(MpiSintel, self).__init__()
         flow_root = osp.join(root, split, "flow")
         image_root = osp.join(root, split, dstype)

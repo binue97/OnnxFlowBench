@@ -6,6 +6,7 @@ import os.path as osp
 
 from utils import frame_utils
 from dataloader.template import FlowDataset
+from config import get_dataset_root
 
 
 class Spring(FlowDataset):
@@ -21,11 +22,12 @@ class Spring(FlowDataset):
 
     def __init__(
         self,
-        root="datasets/Spring",
+        root=None,
         split="train",
         scene_idx=None,
         subsample_groundtruth=True,
     ):
+        root = root or get_dataset_root("spring", "datasets/Spring")
         super(Spring, self).__init__()
         assert split in ["train", "val", "test", "train_val"]
         seq_root = osp.join(root, split)

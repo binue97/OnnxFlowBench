@@ -4,10 +4,12 @@ from glob import glob
 
 from utils import frame_utils
 from dataloader.template import FlowDataset
+from config import get_dataset_root
 
 
 class HD1K(FlowDataset):
-    def __init__(self, root="datasets/HD1K"):
+    def __init__(self, root=None):
+        root = root or get_dataset_root("hd1k", "datasets/HD1K")
         super(HD1K, self).__init__(sparse=True)
 
         seq_ix = 0

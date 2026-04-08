@@ -3,10 +3,12 @@ from glob import glob
 
 from utils import frame_utils
 from dataloader.template import FlowDataset
+from config import get_dataset_root
 
 
 class KITTI(FlowDataset):
-    def __init__(self, split="training", root="datasets/KITTI_2015"):
+    def __init__(self, split="training", root=None):
+        root = root or get_dataset_root("kitti", "datasets/KITTI_2015")
         super(KITTI, self).__init__()
         if split == "testing":
             self.is_test = True

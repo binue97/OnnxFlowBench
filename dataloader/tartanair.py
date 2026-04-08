@@ -4,10 +4,12 @@ import os.path as osp
 from glob import glob
 
 from dataloader.template import FlowDataset
+from config import get_dataset_root
 
 
 class TartanAir(FlowDataset):
-    def __init__(self, root="datasets/TartanAir"):
+    def __init__(self, root=None):
+        root = root or get_dataset_root("tartanair", "datasets/TartanAir")
         super(TartanAir, self).__init__()
         self.root = root
         self._build_dataset()
