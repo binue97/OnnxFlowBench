@@ -42,6 +42,22 @@ from metrics.flow_metrics import compute_metrics
 DATASET_NAMES = ["sintel", "chairs", "kitti", "things", "spring", "hd1k", "tartanair"]
 
 
+def positive_int(value: str) -> int:
+    """argparse type that accepts only positive integers."""
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
+def effective_sample_count(ds, max_samples: int | None) -> int:
+    """Return how many samples will actually be evaluated."""
+    total = len(ds)
+    if max_samples is None:
+        return total
+    return min(total, max_samples)
+
+
 def build_dataset(name: str, dstype: str = "clean", split: str | None = None):
     """
     Build a dataset by name.
@@ -133,9 +149,7 @@ def evaluate(
     """
     assert not ds.is_test, "Cannot evaluate on test split (no ground truth)."
 
-    n = len(ds)
-    if max_samples is not None:
-        n = min(n, max_samples)
+    n = effective_sample_count(ds, max_samples)
 
     per_sample = []
     metric_accum = {}
@@ -255,7 +269,10 @@ def main():
         "--split", default=None, help="Dataset split (default: training/validation)"
     )
     parser.add_argument(
-        "--max-samples", type=int, default=None, help="Evaluate only first N samples"
+        "--max-samples",
+        type=positive_int,
+        default=None,
+        help="Evaluate only the first N samples per dataset",
     )
 
     # Output
@@ -275,8 +292,12 @@ def main():
         print(f"\nLoading dataset: {dataset_name}")
         ds = build_dataset(dataset_name, dstype=args.dstype, split=args.split)
         print(f"  Samples: {len(ds)}")
+        sample_count = effective_sample_count(ds, args.max_samples)
 
-        print("Evaluating...")
+        if args.max_samples is None or sample_count == len(ds):
+            print(f"Evaluating all {sample_count} samples...")
+        else:
+            print(f"Evaluating first {sample_count} of {len(ds)} samples...")
         per_sample, aggregated = evaluate(
             model, ds, dataset_name, max_samples=args.max_samples
         )
