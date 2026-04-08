@@ -55,6 +55,52 @@ Supported datasets: `sintel`, `kitti`, `chairs`, `things`, `spring`, `hd1k`, `ta
 
 Metrics reported: EPE, Fl-all, 1px, 3px, 5px.
 
+### Sequence tracking visualization without ground truth
+
+```bash
+python evaluate_viz.py --model resources/rapidflow_it6.onnx --adapter rapidflow \
+        --device cpu --input resources/test_sequences --output results/evaluate_viz
+```
+
+This mode is for custom datasets that only provide image sequences. The script:
+
+1. discovers sequence folders under the input root;
+2. seeds points on the first frame once;
+3. tracks them across the sequence with optical flow;
+4. saves one annotated GIF per sequence.
+
+Expected layout:
+
+```text
+your_sequence_root/
+    seq1/
+        0001.png
+        0002.png
+        ...
+    seq2/
+        0001.png
+        0002.png
+        ...
+```
+
+If the input root itself contains images directly, it is treated as a single sequence.
+
+Useful options:
+
+```bash
+python evaluate_viz.py --model model.onnx --adapter raft \
+        --input /path/to/sequences --point-mode fast --point-count 300 \
+        --max-displacement 40 --trail-length 10 --duration-ms 60
+```
+
+Dead-point rules are applied in this order:
+
+1. invalid sampled flow (`NaN` or `Inf`);
+2. tracked point moves outside the image;
+3. per-step displacement exceeds the configured threshold.
+
+When `--max-displacement` is omitted, the script derives a default threshold from the image diagonal.
+
 ## How It Works
 
 ```
